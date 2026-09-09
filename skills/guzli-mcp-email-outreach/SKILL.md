@@ -1,7 +1,11 @@
 ---
 name: guzli-mcp-email-outreach
 description: >-
-  Runs outbound email outreach through Guzli MCP using standing campaigns, segments, and contacts—not one-off sends. Use when Guzli MCP is available for email outreach, email campaigns, segment-fed enrollments, or turning a researched lead list into Guzli email campaigns. Do not use for voice campaigns (see guzli-mcp-voice-campaigns), website copy, SEO, directory submissions, or a single transactional email outside a campaign.
+  Runs outbound email outreach through Guzli MCP using standing campaigns,
+  segments, and contacts—not one-off sends. Use when Guzli MCP is available for
+  email outreach, email campaigns, segment-fed enrollments, or turning a researched
+  lead list into Guzli email campaigns. Do not use for voice campaigns (see
+  guzli-mcp-voice-campaigns) or a single transactional email outside a campaign.
 license: Apache-2.0
 compatibility: >-
   Requires a host that supports Agent Skills (agentskills.io) and a connected
@@ -10,7 +14,7 @@ compatibility: >-
   Muse, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.1.0"
+  version: "1.1.1"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io

@@ -10,7 +10,7 @@ compatibility: >-
   Muse, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.1.0"
+  version: "1.1.1"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io

@@ -1,7 +1,10 @@
 ---
 name: guzli-mcp-voice-campaigns
 description: >-
-  Creates and runs Guzli MCP voice campaigns (draft, publish, run) with shared contacts and segments. Use when the task is outbound or configured voice dialing, voice campaign setup, or voice campaign status via Guzli MCP. Do not use for email outreach (see guzli-mcp-email-outreach) or one-off chat tools.
+  Creates and runs Guzli MCP voice campaigns (draft, publish, run) with shared
+  contacts and segments. Use when the task is outbound or configured voice dialing,
+  voice campaign setup, or voice campaign status via Guzli MCP. Do not use for
+  email outreach (see guzli-mcp-email-outreach).
 license: Apache-2.0
 compatibility: >-
   Requires a host that supports Agent Skills (agentskills.io) and a connected
@@ -10,7 +13,7 @@ compatibility: >-
   Muse, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.1.0"
+  version: "1.1.1"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
