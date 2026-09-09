@@ -1,3 +1,7 @@
+# Host note
+
+Tool names below are **remote** Guzli MCP names. Your agent host may show a namespace or prefix; match on these remote names when invoking.
+
 # Guzli MCP — voice campaign tools
 
 Confirm live schemas. Shared contact/segment tools: [core tool map](../../guzli-mcp-core/references/tool-map.md).

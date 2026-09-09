@@ -1,3 +1,7 @@
+# Host note
+
+Tool names below are **remote** Guzli MCP names. Your agent host may show a namespace or prefix; match on these remote names when invoking.
+
 # Guzli MCP — core / shared tools
 
 Confirm live schemas on the connected server. Names are **remote** tool names.

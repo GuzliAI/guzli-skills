@@ -1,0 +1,16 @@
+interface:
+  display_name: "Guzli Email Outreach"
+  short_description: "Standing email campaigns and segments via Guzli MCP"
+  brand_color: "#111827"
+  default_prompt: "Follow the guzli-mcp-email-outreach skill against the connected Guzli MCP server."
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "guzli"
+      description: "Guzli remote MCP (chat, voice, campaigns, contacts, inbox)"
+      transport: "streamable_http"
+      url: "https://mcp.guzli.com/mcp"
