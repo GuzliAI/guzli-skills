@@ -10,7 +10,7 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.1.2"
+  version: "1.2.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
@@ -51,7 +51,7 @@ Do not assume Cursor-, Claude-, or Codex-specific tool APIs. Use whatever MCP in
 
 ### 1. Discover
 
-List Guzli MCP tools. If auth fails, fix the host connector — do not invent a parallel HTTP API.
+List Guzli MCP tools. Discover a usable `agent_id` from `list_campaigns` (or the user) before creating campaigns. If auth fails, fix the host connector — do not invent a parallel HTTP API.
 
 ### 2. Contacts
 
@@ -59,6 +59,7 @@ List Guzli MCP tools. If auth fails, fix the host connector — do not invent a 
 - `create_contact` with a real `source_reason_code` (lowercase snake_case).
 - `update_contact` for profile / custom attributes.
 - Never invent email, phone, or name.
+- Custom attributes only if the org has configured keys. `invalid_contact_patch` + `unknown_key_count` means omit custom attributes for now.
 
 ### 3. Lifecycle
 

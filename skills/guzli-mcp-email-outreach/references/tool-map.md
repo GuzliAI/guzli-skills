@@ -22,3 +22,12 @@ Confirm live schemas. See also [guzli-mcp-core tool map](../../guzli-mcp-core/re
 | `get_campaign_enrollment_summary` | Counts + typed refusals |
 | `campaign_measurement` | Metrics |
 | `send_email` | Single message only — not lists |
+
+
+## Ops notes (live)
+
+- Publish requires `maximum_daily_channel_units` in `cap_policy` or readiness returns `campaign_daily_missing`.
+- Segment predicates need a UUID `predicate_id`.
+- `enroll_campaign_contacts` is for **explicit** audience campaigns only.
+- Segment campaigns enroll via `enroll_on_segment_entry` / segment_entry facts.
+- `run_email_campaign` queues enrollments; if it returns `invalid_workflow_request`, report upstream — do not invent success.
