@@ -8,13 +8,17 @@ Confirm live schemas. Shared contact/segment tools: [core tool map](../../guzli-
 
 | Remote name | Role |
 |---|---|
-| `create_voice_campaign` | Create draft voice campaign |
-| `publish_voice_campaign` | Readiness check + publish revision |
+| `create_voice_campaign` | Create draft voice campaign (`name`, optional `voice_profile_id`) |
+| `publish_voice_campaign` | Readiness check + publish (`campaign_id`, `revision_id`, `expected_lock_version`, `agent_id`) |
 | `run_voice_campaign` | Start published revision |
-| `revise_campaign` | May apply when revising definitions (confirm schema) |
-| `list_campaigns` / `get_campaign` / `get_campaign_revision` | Inventory / inspect when available |
-| `enroll_campaign_contacts` | Enroll into published campaign when supported |
-| `get_campaign_enrollment_summary` | Enrollment dispositions |
+| `revise_campaign` | Replace draft definition (large schema; may return opaque `invalid_workflow_request`) |
+| `list_campaigns` / `get_campaign` / `get_campaign_revision` | Inventory / inspect; use to recover ids after create timeout |
+| `enroll_campaign_contacts` | Enroll into **active published** explicit campaign |
+| `get_campaign_enrollment_summary` / `list_campaign_enrollments` | Enrollment dispositions |
 | `campaign_measurement` | Measurement when applicable |
+
+## Not on MCP (as of skill v1.2.0)
+
+No `list_voice_profiles`, telephony account, or number-pool inventory tools. No MCP tool to register agent **voice send capability** (publish reason `send_capability_not_registered`).
 
 Voice step config (profile overrides, dial permissions, voicemail, IVR, etc.) lives on revision/channel payloads — always re-read the tool schema; do not copy stale field lists from memory.
