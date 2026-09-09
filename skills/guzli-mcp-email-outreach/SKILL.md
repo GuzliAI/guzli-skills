@@ -14,7 +14,7 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.2.0"
+  version: "1.3.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
@@ -35,7 +35,7 @@ Use your host’s MCP tool caller against the connected Guzli server. Prefer **r
 1. **One standing segment per cohort** (strategy name, not “batch-17”). Expression usually matches emails / domains / lifecycle — not a pasted one-off ID list in the campaign.
 2. **One standing campaign per strategy**, audience `kind: segment`, `enroll_on_segment_entry: true`. Keep feeding contacts that match the segment; rematerialize as the list grows.
 3. **Few campaigns total** — never one campaign per contact or per daily CSV.
-4. **Personalization on the contact** when the org has configured custom attribute keys. If `create_contact` / `update_contact` returns `invalid_contact_patch` with `unknown_key_count`, this org has **no** custom attributes configured — omit them (or configure keys in product first).
+4. **Personalization on the contact** only when the org’s attribute catalog names allowed keys. **Omit `custom_attributes`** on `create_contact` / `update_contact` unless a refusal or the configured catalog names an allowed key. `configured_attribute_keys: []` means this organization has configured none; unknown keys are **rejected by design**, never silently dropped.
 5. **`send_email` is for a single explicit one-off** (verify path, hot reply). Not for list outreach.
 
 ## Required facts before create
@@ -112,7 +112,9 @@ Explicit audience (fixed set / ops twin):
 { "kind": "explicit" }
 ```
 
-Then `enroll_campaign_contacts` after publish. **`enroll_campaign_contacts` fails with `campaign_enrollment_explicit_audience_required` on segment-audience campaigns** — that is expected.
+Then `enroll_campaign_contacts` after publish.
+
+**By design:** `enroll_campaign_contacts` is for **explicit-audience** campaigns only. Segment-audience campaigns are populated by segment automation (publish-time sweep of the pinned materialization plus later entry facts). `campaign_enrollment_explicit_audience_required` is the intended answer — do not try to route around it.
 
 ### Publish
 
@@ -120,14 +122,34 @@ Then `enroll_campaign_contacts` after publish. **`enroll_campaign_contacts` fail
 
 ### Enrollments after publish
 
-- Segment campaigns: members enroll via **segment_entry** when `enroll_on_segment_entry` is true. Not every pre-existing matched contact always appears immediately — rematerialize and re-check `list_campaign_enrollments` / `get_campaign_enrollment_summary`.
+- Segment campaigns: members enroll via segment automation (publish-time sweep + later entry). Do **not** call `enroll_campaign_contacts`.
 - Explicit campaigns: `enroll_campaign_contacts` with `contact_ids`, `requested_at`, optional `request_id`.
+
+### `list_segment_members`
+
+Send only declared arguments: `segment_id`, optional version, `limit`, `offset`. Do **not** pass `campaign_id` (undeclared → schema/`-32602` failures).
 
 ### Run / queue
 
 `run_email_campaign` requires `campaign_id` + `revision_id`, and either `all_active: true` or `enrollment_ids`.
 
-If the tool returns `invalid_workflow_request` or `email_segment` returns `storage_operation_failed`, **do not pretend mail queued** — report the reason code, leave the published campaign + enrollments in place, and use `send_email` only if the user asked for a one-off verify. Escalation belongs with Guzli backend/Integrations.
+## Engine: designed behavior vs tracked defects (2026-09-09)
+
+**Designed — use the surface this way (do not “fix”):**
+
+1. Omit `custom_attributes` unless the catalog/refusal names allowed keys (`configured_attribute_keys: []` ⇒ none).
+2. `enroll_campaign_contacts` → explicit audience only; segment campaigns use segment automation.
+3. OAuth refresh handles rotate once; run refreshes **single-flight** per session and reuse winning tokens across parallel tool calls (“sibling already rotated tokens” = client racing itself). See **guzli-mcp-core**.
+4. `list_segment_members` — only declared args (no `campaign_id`).
+5. Email publish needs `cap_policy.maximum_daily_channel_units` (pacing law).
+
+**Tracked engine defects — do not work around; report and wait:**
+
+| Issue | Severity | Note |
+|---|---|---|
+| `run_email_campaign` rejects every valid request | P0 | Engine schema defect; client arguments may be correct |
+| Exact segment publish can miss a member that matched an earlier materialization | P1 | Known enrollment omission class |
+| `email_segment` fails publish on effect-identity collision after creating materialization + draft | P1 | `may_have_executed: false` can be wrong — inspect side effects |
 
 ## Hard rules
 
@@ -148,7 +170,9 @@ If the tool returns `invalid_workflow_request` or `email_segment` returns `stora
 ## Anti-patterns
 
 - Skipping `maximum_daily_channel_units`.
-- Calling `enroll_campaign_contacts` on a segment-audience campaign.
+- Calling `enroll_campaign_contacts` on a segment-audience campaign (or treating that refusal as a bug).
+- Passing undeclared args to `list_segment_members` (e.g. `campaign_id`).
 - Omitting `predicate_id` on segment predicates.
-- Treating `run_email_campaign` success as delivery completion (it only queues).
+- Inventing workarounds for `run_email_campaign` / `email_segment` engine defects.
 - Stuffing unconfigured custom attribute keys onto contacts.
+- Parallel OAuth refreshes that race rotated tokens.

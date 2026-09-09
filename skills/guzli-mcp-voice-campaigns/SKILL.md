@@ -13,7 +13,7 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.2.0"
+  version: "1.3.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
@@ -40,10 +40,10 @@ Use your host’s MCP tool caller against the connected Guzli server.
 ## Prerequisites
 
 1. Guzli MCP connected; voice tools present (`create_voice_campaign`, `publish_voice_campaign`, `run_voice_campaign`, …).
-2. Know **agent_id** and a real **voice_profile_id** (ask if missing — do not invent). MCP has **no** `list_voice_profiles` / telephony / number-pool tools as of skill v1.2.0.
+2. Know **agent_id**. Optional `voice_profile_id` when the user/product provides one — do not invent. MCP has **no** `list_voice_profiles` / telephony / number-pool tools as of skill v1.3.0.
 3. Never invent phone numbers.
 4. First live publish/run in a thread needs explicit user approval.
-5. **Hard gate:** the campaign agent must have **voice channel send capability registered** in engine/product. MCP cannot register it. `propose_agent_configuration_change` (`allow_in_voice`) does **not** clear this.
+5. **Hard gate (tracked P1):** MCP-created voice campaigns cannot publish yet. `publish_voice_campaign` returns `send_capability_not_registered` because the step’s **channel key does not match the engine’s voice send registry**. This is **not** a missing voice profile or number pool, and **no MCP call** can fix it today. `propose_agent_configuration_change` (`allow_in_voice`) does **not** clear it. Do not work around — wait for the engine fix.
 
 ## Workflow
 
@@ -61,7 +61,7 @@ Voice campaign:
 
 ### Draft
 
-`create_voice_campaign` requires `name`; optional `voice_profile_id`. Without a profile, drafts often land with `voice_profile_id=null`, null telephony/number pool, and placeholder artifact digests — expect later readiness failures even after send capability exists.
+`create_voice_campaign` requires `name`; optional `voice_profile_id`. Drafts may land with `voice_profile_id=null` and placeholder artifact digests; the current publish blocker is the **channel-key vs send registry** mismatch, not the missing profile.
 
 **Create timeout:** the MCP call may hang for many minutes while the server still creates the draft. On timeout, `list_campaigns` by name and continue with recovered `campaign_id` / `draft_revision_id`.
 
@@ -79,9 +79,8 @@ Observed on connected Guzli MCP (~71 tools):
 
 | Symptom | Handling |
 |---|---|
-| `publish_voice_campaign` → `readiness_blocked` / `send_capability_not_registered` (`channel_key=voice`, `capability_registered=false`) | **Stop.** Product/engine must register voice **send** for that agent. Not fixable via MCP. Do not retry in a loop. |
-| No inventory for `voice_profile_id` / number pool / telephony | Ask the user or product UI for UUIDs. Do not invent. Prefer adding MCP list tools on the product side. |
-| Draft `voice_profile_id` / `telephony_account_id` / `number_pool_id` null; `artifact:sha256:aaaa…` | Expect a second readiness pass after send capability is fixed unless product auto-binds agent defaults. |
+| `publish_voice_campaign` → `readiness_blocked` / `send_capability_not_registered` | **Stop.** Tracked P1: step channel key ≠ engine voice send registry. **Not** missing profile/pool. No MCP workaround. Do not retry in a loop. |
+| No inventory for `voice_profile_id` / number pool / telephony | Ask the user if needed later; do not invent. Prefer product MCP list tools when added. |
 | `revise_campaign` → opaque `invalid_workflow_request` | Report as backend opacity; do not guess fields. Prefer structured validation errors from engine. |
 | Contact phone **provisional**; step defaults to `verified_channel_identifier` | Schema allows `pinned_identifier` + `contact_identifier_id`. Prefer pin when revise works; document outcome. |
 | `enroll_campaign_contacts` | Only on **active published** explicit-audience campaigns. |
@@ -92,7 +91,7 @@ Observed on connected Guzli MCP (~71 tools):
 2. No invented phones or silent dial launches.
 3. Re-read voice schemas every time — payloads are large and versioned.
 4. Keep private dial lists out of shared skill text.
-5. Do not treat Ability `allow_in_voice` as a substitute for campaign send-capability registration.
+5. Do not treat Ability `allow_in_voice`, inventing a `voice_profile_id`, or adding a number pool as fixes for `send_capability_not_registered`.
 
 ## Verify
 
@@ -100,4 +99,4 @@ Draft ids known; publish readiness clear of `send_capability_not_registered`; re
 
 ## Anti-patterns
 
-Using `send_email` / `create_email_campaign` for phone outreach; one voice campaign per phone number; inventing `voice_profile_id`; looping publish when `send_capability_not_registered`; assuming `propose_agent_configuration_change` enables campaign dials.
+Using `send_email` / `create_email_campaign` for phone outreach; one voice campaign per phone number; inventing `voice_profile_id`; looping publish or “fixing” profile/pool for `send_capability_not_registered`.
