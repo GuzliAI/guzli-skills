@@ -10,7 +10,7 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.3.0"
+  version: "1.4.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
@@ -57,7 +57,7 @@ List Guzli MCP tools. Discover a usable `agent_id` from `list_campaigns` (or the
 
 - `search_contacts` / `lookup_contact` before create.
 - `create_contact` with a real `source_reason_code` (lowercase snake_case).
-- **Omit `custom_attributes`** unless a refusal or the configured catalog names an allowed key. `configured_attribute_keys: []` means none are configured; unknown keys are rejected by design (never silently dropped).
+- **Omit `custom_attributes`** unless a refusal or the configured catalog names an allowed key. If the org has no configured keys, leave custom attributes off.
 - `update_contact` for profile / allowed custom attributes only.
 - Never invent email, phone, or name.
 
@@ -76,7 +76,7 @@ List Guzli MCP tools. Discover a usable `agent_id` from `list_campaigns` (or the
 
 ## OAuth / parallel calls
 
-The engine rotates refresh handles **once** and rejects reuse. Run token refreshes **single-flight** per session and reuse the winning rotated tokens across parallel tool calls. A “sibling already rotated tokens” message usually means the MCP client raced itself — serialize refresh, then fan out tool calls with the new tokens.
+Refresh tokens **single-flight** per session: complete one refresh, then reuse those tokens for parallel tool calls. Do not run concurrent refreshes that compete for the same rotated handle.
 
 ## Hard rules
 
