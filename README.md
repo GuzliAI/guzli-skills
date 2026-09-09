@@ -2,7 +2,7 @@
 
 Public [Agent Skills](https://agentskills.io) for [Guzli](https://guzli.com) MCP (`https://mcp.guzli.com/mcp`).
 
-These skills follow the **agentskills.io** `SKILL.md` standard so the same folders work across hosts that load Agent Skills — including **Claude Code**, **OpenAI Codex / ChatGPT skills**, **Cursor**, **Grok Bot**, **OpenClaw**, **Muse Code**, and other compatible agents.
+These skills follow the **agentskills.io** `SKILL.md` standard so the same folders work across hosts that load Agent Skills — including **Claude Code**, **OpenAI Codex / ChatGPT skills**, **Cursor**, **Grok Bot**, **OpenClaw**, **Muse Code**, **Hermes Agent** (Nous Research), and other compatible agents.
 
 Each skill is a directory with:
 
@@ -22,7 +22,7 @@ Install **core** plus whichever channel skill(s) you need. Channel skills assume
 
 ## Install
 
-See [INSTALL.md](INSTALL.md) for host-specific paths (Claude, Codex, Cursor, Grok, OpenClaw, Muse, generic clone).
+See [INSTALL.md](INSTALL.md) for host-specific paths (Claude, Codex, Cursor, Grok, OpenClaw, Muse, Hermes, generic clone).
 
 Quick pattern (any host that scans a skills directory):
 

@@ -87,6 +87,52 @@ openclaw skills install ./skills/guzli-mcp-core
 
 ClawHub publish is optional for wider OpenClaw distribution (`clawhub skill publish <path>`).
 
+
+## Hermes Agent (Nous Research)
+
+Hermes uses the same agentskills.io `SKILL.md` layout. Primary skill root: `~/.hermes/skills/`.
+
+### Install from this GitHub repo (recommended)
+
+```bash
+# Each path is owner/repo/<path-to-skill-folder>
+hermes skills install GuzliAI/guzli-skills/skills/guzli-mcp-core
+hermes skills install GuzliAI/guzli-skills/skills/guzli-mcp-email-outreach
+hermes skills install GuzliAI/guzli-skills/skills/guzli-mcp-voice-campaigns
+```
+
+Or pin a branch/ref if your CLI supports it (see `hermes skills install --help`).
+
+### Direct SKILL.md URL (+ referenced files)
+
+```bash
+hermes skills install https://raw.githubusercontent.com/GuzliAI/guzli-skills/main/skills/guzli-mcp-core/SKILL.md
+hermes skills install https://raw.githubusercontent.com/GuzliAI/guzli-skills/main/skills/guzli-mcp-email-outreach/SKILL.md
+hermes skills install https://raw.githubusercontent.com/GuzliAI/guzli-skills/main/skills/guzli-mcp-voice-campaigns/SKILL.md
+```
+
+Hermes fetches `references/` (and other support dirs) linked from `SKILL.md`.
+
+### Manual copy
+
+```bash
+mkdir -p ~/.hermes/skills
+cp -R /tmp/guzli-skills/skills/<skill> ~/.hermes/skills/<skill>
+hermes skills list
+```
+
+Optional: also expose the cross-agent folder by adding to `~/.hermes/config.yaml`:
+
+```yaml
+skills:
+  external_dirs:
+    - ~/.agents/skills
+```
+
+Then you can keep one copy under `~/.agents/skills` for Hermes + Codex.
+
+Confirm with `hermes skills list` or `/skills` in a chat session. Connect Guzli MCP in Hermes the same as any other MCP server (`https://mcp.guzli.com/mcp`).
+
 ## Muse Code
 
 Muse imports Claude/Codex skill trees and uses Agent Skills-style folders:

@@ -10,13 +10,16 @@ compatibility: >-
   Requires a host that supports Agent Skills (agentskills.io) and a connected
   Guzli MCP server at https://mcp.guzli.com/mcp (OAuth via gateway.guzli.com).
   Network access required. Works with Claude Code, Codex, Cursor, Grok, OpenClaw,
-  Muse, and other compatible agents.
+  Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.1.1"
+  version: "1.1.2"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
+  hermes:
+    tags: [Guzli, MCP, Voice, Campaigns]
+    related_skills: [guzli-mcp-core, guzli-mcp-email-outreach]
 ---
 
 # Guzli MCP voice campaigns
