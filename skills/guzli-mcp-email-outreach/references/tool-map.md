@@ -8,6 +8,9 @@ Confirm live schemas. See also [guzli-mcp-core tool map](../../guzli-mcp-core/re
 
 | Remote name | Role |
 |---|---|
+| `get_campaign_revision_readiness` | **Blocking reasons before publish** (operation) |
+| `list_campaign_revisions` | Revisions + lock versions (operation) |
+| `pause_campaign` / `resume_campaign` | Pause / resume (operation) |
 | `list_campaigns` | List campaigns |
 | `get_campaign` | Campaign + revision ids |
 | `get_campaign_revision` | Full revision |
@@ -25,6 +28,10 @@ Confirm live schemas. See also [guzli-mcp-core tool map](../../guzli-mcp-core/re
 | `list_segment_members` | Segment membership (`segment_id`, optional version, `limit`, `offset` only) |
 
 ## Operator notes
+
+- On 1.0.7 `run_email_campaign` rejects valid requests (`invalid_workflow_request`); fixed in 1.0.8. Use `email_contacts` / `email_segment` for fresh cohorts meanwhile.
+- `admission_policy.effect_key` is a label; on 1.0.7 keep it unique per campaign.
+- `revise_campaign`: send a complete draft and drop `extraction_schema_version_id` from a read.
 
 - Publish requires `cap_policy.maximum_daily_channel_units`.
 - Segment predicates need a UUID `predicate_id`.
