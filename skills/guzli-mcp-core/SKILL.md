@@ -64,7 +64,15 @@ Use a workflow to act, an operation to find an id or check state.
 
 ## The campaign shape (same for email and voice)
 
-`create_*_campaign` → (optional `get_campaign_revision` → edit → `revise_campaign`, which publishes) → or `get_campaign_revision_readiness` → `publish_*_campaign` → `enroll_campaign_contacts` (explicit audiences only) → `run_*_campaign` → check attempts / results. One-call shortcuts (`email_contacts`, `email_segment`, `call_phone_number`, `call_contacts`, `call_segment`) do the whole chain for a fresh cohort; they carry no script and no extraction.
+`create_*_campaign` → (optional `get_campaign_revision` → edit → `revise_campaign`, which publishes) → or `get_campaign_revision_readiness` → `publish_*_campaign` → `enroll_campaign_contacts` (explicit audiences only) → `run_*_campaign` → check attempts / results. One-call shortcuts (`email_contacts`, `email_segment`, `call_phone_number`, `call_contacts`, `call_segment`) do the whole chain for a fresh cohort. The voice ones take the call script (`call_instructions`, required) and answer extraction directly.
+
+## Consent before any campaign send (required)
+
+Every campaign send, email or voice, marketing or transactional, is checked against a recorded permission for that contact, that channel and that purpose. No record means the attempt fails with `permission_missing`. Nothing sends until a record exists. Before enrolling anyone:
+
+1. `list_contact_permission_heads {"path": {"contact_id": "<contact uuid>"}}` → `items[]` with `channel_key`, `purpose`, `basis_key`, `state`. You need an item with `state: "active"`, the channel you will use (`email`, or `voice_twilio` for calls) and the purpose of your campaign.
+2. If there is none, ask the user on what basis this person may be contacted, then record it with `capture_operator_permission` (exact body in the email and voice skills). Bases: `explicit_opt_in`, `existing_relationship` (either purpose); `recipient_requested`, `contract_or_service`, `legal_obligation` (transactional only); `cold_b2b` (marketing only); `legitimate_interest`. The organisation's allowed bases are set in the dashboard; the usual set is `explicit_opt_in`, `existing_relationship`, `recipient_requested`, `contract_or_service`. A basis outside that set fails the send with `permission_basis_not_allowed`.
+3. Never record a permission the user did not confirm. The record names who vouched for it.
 
 ## Codes you will meet
 
@@ -78,6 +86,7 @@ Use a workflow to act, an operation to find an id or check state.
 | `invalid_workflow_request` | Arguments rejected against the schema; `schema_path` names the field | Fix that field; do not retry blindly |
 | `invalid_contact_patch` with `configured_attribute_keys: []` | Unknown custom attribute keys | Omit `custom_attributes` |
 | `held_for_approval` | The agent's policy holds outbound actions for a human | Tell the user; a reviewer approves in the dashboard |
+| `permission_missing` / `permission_inactive` / `permission_basis_not_allowed` | No active permission for this contact, channel and purpose, or its basis is outside the organisation's allowed set | Record one with `capture_operator_permission` (see "Consent before any campaign send"); do not retry the same run |
 
 ## Contacts
 
@@ -99,7 +108,7 @@ The engine rotates refresh tokens once and rejects reuse. Refresh single-flight 
 
 1. No fabricated contact data.
 2. No silent sending or dialing: confirm with the user before the first live send or dial in a thread.
-3. Readiness before every publish.
+3. Readiness before every publish; a permission record for every recipient before every run.
 4. On a schema error, report the tool and the field; do not guess.
 5. Channel details live in the sibling skills.
 

@@ -2,19 +2,19 @@
 
 Tool names below are **remote** Guzli MCP names. Your agent host may show a namespace or prefix; match on these remote names when invoking. Confirm live schemas.
 
-## One-call dial workflows (agent persona only — no instructions, no extraction; use the step-by-step tools for any call with a purpose)
+## One-call dial workflows (script required; extraction optional)
 
 | Remote name | Role |
 |---|---|
-| `call_phone_number` | Create + publish + enroll + run for one E.164 number: `name`, `agent_id`, `phone_number`, `number_pool_id`, `admission_policy`, `cap_policy` (optional `quiet_hours_policy`, `schedule_policy`, `voice_profile_id`) |
+| `call_phone_number` | Create + publish + enroll + run for one E.164 number: `name`, `agent_id`, `phone_number`, `call_instructions` (required), `number_pool_id`, `admission_policy`, `cap_policy` (optional `initial_message`, `post_call_extraction`, `quiet_hours_policy`, `schedule_policy`, `voice_profile_id`) |
 | `call_contacts` | Same for explicit `contact_ids` |
 | `call_segment` | Same for a `segment_id` (materializes, creates, publishes, runs) |
 
-## Campaign with instructions and extraction (step by step)
+## Step by step
 
 | Remote name | Role |
 |---|---|
-| `create_voice_campaign` | Draft: `name`, `agent_id`, `audience_policy`, `number_pool_id`, `admission_policy`, `cap_policy` (optional `quiet_hours_policy`, `schedule_policy`, `voice_profile_id`) → `campaign_id`, `revision_id`, `lock_version` |
+| `create_voice_campaign` | Draft: `name`, `agent_id`, `audience_policy`, `number_pool_id`, `admission_policy`, `cap_policy` (optional `call_instructions`, `initial_message`, `post_call_extraction`, `quiet_hours_policy`, `schedule_policy`, `voice_profile_id`) → `campaign_id`, `revision_id`, `lock_version` |
 | `get_campaign_revision` | Read the draft `definition` (operation) |
 | `revise_campaign` | Replace the draft with the edited definition **and publish it**: `campaign_id`, `source_revision_id`, `existing_draft_revision_id` (= the draft), `draft`. Drop `extraction_schema_version_id`; keep the draft's own `step_id`s |
 | `get_campaign_revision_readiness` | Readiness reasons (operation) |
@@ -24,6 +24,13 @@ Tool names below are **remote** Guzli MCP names. Your agent host may show a name
 | `list_campaign_call_attempts` / `get_campaign_call_attempt` | Dial attempts, outcomes, recording, and the automatic `post_event_summary` (operation) |
 | `list_campaign_extraction_results` / `get_campaign_extraction_result` | Captured answers per call (operation) |
 | `get_campaign_enrollment_summary` / `list_campaign_enrollments` | Enrollment dispositions |
+
+## Permissions (operations; required before any run)
+
+| Remote name | Role |
+|---|---|
+| `list_contact_permission_heads` | `{"path": {"contact_id"}}` → active permissions per channel and purpose |
+| `capture_operator_permission` | `{"path": {"contact_id"}, "body": {...}}` → records one; body in SKILL.md "Consent before any call" |
 
 ## Discovery (operations)
 
