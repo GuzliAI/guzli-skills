@@ -48,6 +48,11 @@ How you add that connector differs by product (Claude connectors, Codex/ChatGPT 
 - No host-private paths, chat ids, or org secrets in skill text.
 - Intra-skill links stay one level deep (`references/...`). Cross-skill deps are by **skill name**, not fragile relative paths after install.
 
+## Changelog
+
+- **1.5.0 (2026-09-10)** — verified against the Guzli engine MCP registry. Adds the two tool layers (workflows vs operations) and id discovery (`list_telephony_number_pools`, `list_voice_profiles`, `list_telephony_phone_numbers`, `get_campaign_revision_readiness`); voice runbook rewritten around the caller-ID **number pool** (required, no default), the daily cap, readiness codes and the one-call dial workflows; release-compatibility table for 1.0.7 vs 1.0.8 (`run_email_campaign`, voice publish, effect-key labels, pinned-segment sweep); `revise_campaign` round-trip rule.
+- **1.4.0** — MCP campaign skills rewritten as clean runbooks.
+
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE).

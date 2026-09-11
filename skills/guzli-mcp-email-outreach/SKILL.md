@@ -1,11 +1,10 @@
 ---
 name: guzli-mcp-email-outreach
 description: >-
-  Runs outbound email outreach through Guzli MCP using standing campaigns,
-  segments, and contacts—not one-off sends. Use when Guzli MCP is available for
-  email outreach, email campaigns, segment-fed enrollments, or turning a researched
-  lead list into Guzli email campaigns. Do not use for voice campaigns (see
-  guzli-mcp-voice-campaigns) or a single transactional email outside a campaign.
+  Sends email through Guzli MCP: one-off messages with send_email and list
+  outreach with campaigns fed by contacts or segments, including readiness,
+  publish, enroll, run, replies and the unsubscribe footer. Use for any email
+  task through Guzli MCP. Do not use for phone calls (see guzli-mcp-voice-campaigns).
 license: Apache-2.0
 compatibility: >-
   Requires a host that supports Agent Skills (agentskills.io) and a connected
@@ -14,134 +13,89 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.4.0"
+  version: "1.6.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
+  verified_against: "Guzli engine release 1.0.8 (live-tested end to end)"
   hermes:
     tags: [Guzli, MCP, Email, Campaigns, Outreach]
     related_skills: [guzli-mcp-core, guzli-mcp-voice-campaigns]
 ---
 # Guzli MCP email outreach
 
-Install and follow **`guzli-mcp-core`** first. Tool map: [references/tool-map.md](references/tool-map.md).
+Install and follow **`guzli-mcp-core`** first. Phone calls are skill **`guzli-mcp-voice-campaigns`**. Tool map: [references/tool-map.md](references/tool-map.md).
 
-Run outbound **email** as **standing campaigns** fed by **segments** and **contacts**. Prefer campaigns over looping `send_email` for list work.
+Two ways to send email. A **one-off** message goes through `send_email`. **List outreach** goes through a campaign: contacts or a segment as the audience, one email step, caps, readiness, publish, enroll, run. Prefer campaigns over looping `send_email`.
 
-Use your host’s MCP tool caller against the connected Guzli server. Prefer **remote tool names**. Re-read each tool’s input schema before calling.
+## One-off email: `send_email`
 
-## How campaigns should run
+```json
+send_email {"to": "person@example.com", "subject": "Your appointment", "body": "Plain text body.", "idempotency_key": "<uuid you generate>"}
+```
 
-1. **One standing segment per cohort** (strategy name, not a batch id). Prefer durable predicates (domain, lifecycle, tags) over one-off address lists when the cohort is ongoing.
-2. **One standing campaign per strategy** with audience `kind: segment` and `enroll_on_segment_entry: true`. Keep feeding matching contacts into the segment over time.
-3. **Few campaigns total** — never one campaign per contact or per CSV drop.
-4. **Personalization on the contact**, only with configured custom-attribute keys. **Omit `custom_attributes`** on create/update unless the org catalog (or a tool refusal) names an allowed key. An empty configured-key set means the org has none — do not invent keys.
-5. **`send_email` is one-off only** (a single verify or hot reply). Not for list outreach.
-6. **Audience → enrollment split:**
-   - **Segment audience:** populated by segment automation (publish-time sweep of the pinned materialization, then later segment-entry facts). Do **not** call `enroll_campaign_contacts`.
-   - **Explicit audience:** after publish, call `enroll_campaign_contacts` with the contact ids.
-7. **Pacing:** set `cap_policy.maximum_daily_channel_units` before publish (required). Usually also set `maximum_enrollments`.
-8. **Queue:** after publish and enrollments are in place, call `run_email_campaign` to queue sends. Report ids and status to the user.
+The sender is the agent's configured address. The result is a structured outcome, not the message bytes. If the agent's policy holds outbound email for approval, the result says `held_for_approval`; a human approves it in the dashboard and it is sent as written. Reuse the same `idempotency_key` when you retry; a new key is a new email.
 
-## Required facts before create
+## What you need before a campaign
 
-| Fact | Source |
+| Fact | How to get it |
 |---|---|
-| `agent_id` | Existing `list_campaigns` row, or the user’s Guzli agent id |
-| `tenant_postal_address` | Org mailing address |
-| `admission_policy` | Typically `subject_key: organization`, `effect_key: email.send` |
+| `agent_id` | `list_campaigns` (any row) or the user |
+| `tenant_postal_address` | The organisation's mailing address (required by law in the footer) |
 | `purpose` | `marketing` or `transactional` |
-| Caps | **`maximum_daily_channel_units`** (required) and usually `maximum_enrollments` |
+| `admission_policy` | Two labels you choose, e.g. `{"subject_key":"organization","effect_key":"email.send:<campaign-name>"}` |
+| `cap_policy.maximum_daily_channel_units` | You choose it. Required to publish. Usually also `maximum_enrollments` |
+| Contact ids with real emails | `search_contacts` / `create_contact` |
+| A verified sender | Readiness tells you if the agent's sending identity is not ready; fix it in the dashboard |
 
-## Canonical workflow (segment-fed)
+## Path A — one call for a fresh cohort
 
-```
-- [ ] 1. search / create contacts (real emails only; omit custom_attributes unless allowed)
-- [ ] 2. get_segment_field_catalog
-- [ ] 3. create_segment (publish=true) with a valid expression
-- [ ] 4. materialize_segment → confirm matched count; keep segment_materialization_id
-- [ ] 5. create_email_campaign with audience kind=segment + daily channel units
-- [ ] 6. publish_email_campaign (expected_lock_version from create)
-- [ ] 7. Confirm enrollments via list_campaign_enrollments / get_campaign_enrollment_summary
-- [ ] 8. run_email_campaign (campaign_id + revision_id; all_active or enrollment_ids)
-- [ ] 9. Report campaign/revision ids and whether mail was queued
-```
+- `email_contacts` (explicit contact ids) or `email_segment` (a materialized segment): creates, publishes, enrolls and queues in one call. Required: `name`, `agent_id`, `subject`, `body_text`, `tenant_postal_address`, `purpose`, `admission_policy`, `request_id` (uuid), `requested_at` (ISO time), plus `contact_ids` or `segment_id` + `segment_version_id` + `maximum_age_seconds`. Add `cap_policy`, `link`, `description` as needed.
+- Response: `status: "queued"`, `campaign_id`, `campaign_revision_id`, `accepted_enrollment_ids`.
 
-### Explicit-audience variant
+## Path B — step by step (tested sequence)
 
-Use audience `{ "kind": "explicit" }`, publish, then `enroll_campaign_contacts` (`contact_ids`, `requested_at`, optional `request_id`), then `run_email_campaign`.
+1. `create_email_campaign {"name","agent_id","audience_policy":{"kind":"explicit"},"subject","body_text","tenant_postal_address","purpose","admission_policy","cap_policy":{"maximum_daily_channel_units":100,"maximum_enrollments":100}}` → `campaign_id`, `revision_id`, `lock_version`. Optional `link` (appended to the body as a typed link), `description`, `quiet_hours_policy`, `schedule_policy`.
+2. `get_campaign_revision_readiness {"path":{"campaign_id","revision_id"}}` → fix every error reason.
+3. `publish_email_campaign {"campaign_id","revision_id","expected_lock_version"}`.
+4. Explicit audience: `enroll_campaign_contacts {"campaign_id","contact_ids":[…],"requested_at"}`. Segment audience: skip this; segment automation enrolls.
+5. `run_email_campaign {"campaign_id","revision_id","enrollment_ids":[…]}` or `{"campaign_id","revision_id","all_active":true}` (exactly one of the two) → `status: "queued"`.
+6. Check with `list_campaign_enrollments` / `get_campaign_enrollment_summary` and the campaign's activity.
 
-## Segment expressions
+### Changing a draft before publish: `revise_campaign`
 
-- Call `get_segment_field_catalog` first; only use listed `field_key` + `allowed_operators`.
-- Every predicate needs a **client-generated** `predicate_id` (UUID).
-- Value shape must match the field type, e.g. email `in`:
+`get_campaign_revision` → edit `definition` → `revise_campaign {"campaign_id","source_revision_id","existing_draft_revision_id": <the draft>, "draft": <definition>}`. Send only fields the schema declares; keep the draft's own `step_id`s. **`revise_campaign` publishes the revision.** Do not call `publish_email_campaign` afterwards.
 
-```json
-{
-  "kind": "predicate",
-  "predicate_id": "<uuid>",
-  "field_key": "contact.email",
-  "operator": "in",
-  "value": { "kind": "text_set", "value": ["person@example.com"] }
-}
-```
+Common edit: make the unsubscribe footer optional for a campaign — set the email step's `unsubscribe_requirement` to `"optional"` in the draft (`"required"` is the default). Only do this for mail that is not marketing.
 
-### Materialize
+## Segments
 
-`materialize_segment` with `segment_id` + `segment_version_id`. Check `counts.matched`. Save the materialization `id`.
+- `get_segment_field_catalog` first; use only listed `field_key` + `allowed_operators`.
+- `create_segment` (`publish: true`) with an expression; every predicate needs a client-generated `predicate_id` (uuid). Example predicate:
+  ```json
+  {"kind":"predicate","predicate_id":"<uuid>","field_key":"contact.email","operator":"in","value":{"kind":"text_set","value":["person@example.com"]}}
+  ```
+- `materialize_segment` (`segment_id`, `segment_version_id`) → `counts.matched`; keep the materialization `id`.
+- Segment audience payload: `{"kind":"segment","segment_version_id":"…","materialization_selection":"exact","segment_materialization_id":"…","maximum_age_seconds":300,"enroll_on_segment_entry":true,"unenroll_on_segment_exit":false}` (`current_at_publish` instead of `exact` to take whatever is current at publish).
+- `list_segment_members`: only `segment_id`, optional version, `limit`, `offset`.
 
-### Segment audience payload
+## Replies
 
-```json
-{
-  "kind": "segment",
-  "segment_version_id": "<version uuid>",
-  "materialization_selection": "exact",
-  "segment_materialization_id": "<materialization uuid>",
-  "maximum_age_seconds": 300,
-  "enroll_on_segment_entry": true,
-  "unenroll_on_segment_exit": false
-}
-```
+Every campaign message carries a message id and a per-thread reply address. A reply is matched to the campaign message and lands in the agent's inbox as a conversation; the campaign step does not advance because of a reply. Read replies through the conversation tools, not the campaign tools.
 
-Use `current_at_publish` when you want whatever is current at publish instead of a pinned materialization.
+## Rules that save you a round trip
 
-### Publish
+- Readiness before publish; `campaign_daily_missing` means the daily cap is unset.
+- Explicit audience → you enroll. Segment audience → automation enrolls; `enroll_campaign_contacts` is refused with `campaign_enrollment_explicit_audience_required`.
+- `run_email_campaign` takes exactly one of `all_active` or `enrollment_ids`.
+- `revise_campaign` publishes; no second publish.
+- Contacts: omit `custom_attributes` unless the org has configured keys; never invent addresses.
+- Few standing segments and campaigns; never one campaign per contact or per file.
 
-`publish_email_campaign`: `campaign_id`, `revision_id`, `expected_lock_version` (from create `lock_version`).
+## Verify
 
-### Inspecting segment membership
-
-`list_segment_members`: only declared arguments — `segment_id`, optional version, `limit`, `offset`. Do not pass undeclared fields such as `campaign_id`.
-
-### Run
-
-`run_email_campaign`: `campaign_id` + `revision_id`, and either `all_active: true` or `enrollment_ids`.
-
-## Hard rules
-
-1. No one-campaign-per-contact.
-2. No invented contact data.
-3. No silent live sends without user intent for that thread.
-4. Prefer reuse of standing segments and campaigns.
-5. Voice dialing → **`guzli-mcp-voice-campaigns`**.
-6. Keep private lists and goals out of shared skill text.
-7. OAuth: refresh tokens **single-flight** per session (see **guzli-mcp-core**).
-
-## Verify checklist
-
-- Segment matched count matches the intended cohort.
-- Campaign is published / ready.
-- Enrollment summary shows the expected contacts (segment automation or explicit enroll).
-- User knows whether mail was queued via `run_email_campaign` or sent as a one-off via `send_email`.
+Readiness had no error reasons; the campaign is published; the enrollment summary matches the intended audience; the run returned `queued`; the user has campaign id, revision id and the outcome.
 
 ## Anti-patterns
 
-- Skipping `maximum_daily_channel_units`.
-- Calling `enroll_campaign_contacts` on a segment-audience campaign.
-- Passing undeclared arguments to `list_segment_members`.
-- Omitting `predicate_id` on segment predicates.
-- Stuffing unconfigured custom attribute keys onto contacts.
-- Using `send_email` for list outreach.
-- One campaign per contact or per batch file.
+Skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.

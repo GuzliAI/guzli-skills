@@ -1,7 +1,12 @@
 ---
 name: guzli-mcp-core
 description: >-
-  Connects to and operates Guzli MCP for shared product concepts—tool discovery, contacts, lifecycle stages, and connector hygiene. Use when setting up Guzli MCP, listing or debugging tools, creating or searching contacts, reading lifecycle stages, or before email/voice campaign skills. Do not use alone for full outreach campaign runs (see guzli-mcp-email-outreach or guzli-mcp-voice-campaigns).
+  Connects to and operates Guzli MCP for shared product concepts: the two tool
+  layers, discovery of ids (agents, voice profiles, number pools, phone numbers),
+  contacts, lifecycle stages, readiness checks, and connector hygiene. Use when
+  setting up Guzli MCP, listing or debugging tools, creating or searching
+  contacts, or before any campaign work. Do not use for the channel runbooks
+  themselves (see guzli-mcp-email-outreach and guzli-mcp-voice-campaigns).
 license: Apache-2.0
 compatibility: >-
   Requires a host that supports Agent Skills (agentskills.io) and a connected
@@ -10,10 +15,11 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.4.0"
+  version: "1.6.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
+  verified_against: "Guzli engine release 1.0.8 (live-tested end to end)"
   hermes:
     tags: [Guzli, MCP, Contacts, CRM]
     related_skills: [guzli-mcp-email-outreach, guzli-mcp-voice-campaigns]
@@ -23,68 +29,80 @@ metadata:
 
 Portable foundation for Guzli MCP on any Agent Skills host. Channel runbooks:
 
-- Email outreach → skill **`guzli-mcp-email-outreach`** (install beside this skill)
-- Voice campaigns → skill **`guzli-mcp-voice-campaigns`**
+- Email (one-off and campaigns) → skill **`guzli-mcp-email-outreach`**
+- Phone calls and voice campaigns → skill **`guzli-mcp-voice-campaigns`**
 
 Tool cheat sheet: [references/tool-map.md](references/tool-map.md).
 
-## Host setup (all agents)
+## Host setup
 
-1. Connect Guzli MCP in your product UI or config (`https://mcp.guzli.com/mcp`).
-2. Confirm tools from that server are callable (list/search tools in your host).
-3. Call tools by **remote name** (example: `search_contacts`). Hosts may prefix names; match on the remote/suffix name when needed.
-4. Re-read each tool’s **input schema** before calling — required fields change across releases.
+1. Connect Guzli MCP (`https://mcp.guzli.com/mcp`, OAuth via gateway.guzli.com).
+2. List the server's tools in your host; call them by **remote name** (example `search_contacts`). Hosts may prefix names; match on the suffix.
+3. Read a tool's **input schema** before calling it. The server rejects undeclared arguments with `invalid_workflow_request` and the path of the offending field.
 
-Do not assume Cursor-, Claude-, or Codex-specific tool APIs. Use whatever MCP invocation your host provides.
+## The two tool layers
 
-## Shared concepts
+| Layer | What it is | Examples |
+|---|---|---|
+| **Workflows** (about 25) | One call that does several engine steps | `send_email`, `create_email_campaign`, `email_segment`, `call_phone_number`, `create_voice_campaign`, `revise_campaign`, `run_voice_campaign`, `enroll_campaign_contacts` |
+| **Operations** (about 140) | Direct reads and writes, named `verb_object` | `list_campaigns`, `get_campaign_revision`, `get_campaign_revision_readiness`, `list_telephony_number_pools`, `list_voice_profiles`, `list_campaign_extraction_results` |
 
-| Concept | Meaning |
+Use a workflow to act, an operation to find an id or check state.
+
+## Where ids come from
+
+| Need | Tool |
 |---|---|
-| **Contact** | One person / primary inbox. Personalization → custom attributes. |
-| **Lifecycle** | Stage profile + stages + edges. Read before moving contacts. |
-| **Segment** | Reusable audience (expression → version → materialize). |
-| **Campaign / revision** | Strategy container + versioned definition (email and voice differ). |
-| **Enrollment** | Membership in a campaign; summaries may expose typed refusal reasons. |
+| `agent_id` | `list_campaigns` (any row) or the user |
+| Contacts | `search_contacts`, `lookup_contact`, `create_contact` |
+| Voice profile | `list_voice_profiles` (the agent's profile) |
+| Caller-ID number pool | `list_telephony_number_pools` (an active pool with an active member; there is no default) |
+| Campaign state, `lock_version`, draft `definition` | `get_campaign`, `get_campaign_revision`, `list_campaign_revisions` |
+| Readiness before publish | `get_campaign_revision_readiness` |
+| Segments | `get_segment_field_catalog`, `create_segment`, `materialize_segment`, `get_segment_readiness`, `list_segment_members` |
+| Call outcomes and captured answers | `list_campaign_call_attempts`, `list_campaign_extraction_results`, `get_campaign_extraction_result` |
 
-## Workflow
+## The campaign shape (same for email and voice)
 
-### 1. Discover
+`create_*_campaign` → (optional `get_campaign_revision` → edit → `revise_campaign`, which publishes) → or `get_campaign_revision_readiness` → `publish_*_campaign` → `enroll_campaign_contacts` (explicit audiences only) → `run_*_campaign` → check attempts / results. One-call shortcuts (`email_contacts`, `email_segment`, `call_phone_number`, `call_contacts`, `call_segment`) do the whole chain for a fresh cohort; they carry no script and no extraction.
 
-List Guzli MCP tools. Discover a usable `agent_id` from `list_campaigns` (or the user) before creating campaigns. If auth fails, fix the host connector — do not invent a parallel HTTP API.
+## Codes you will meet
 
-### 2. Contacts
+| Code | Meaning | What to do |
+|---|---|---|
+| `campaign_daily_missing` | `cap_policy.maximum_daily_channel_units` unset | Set it (create or `revise_campaign`) |
+| `number_pool_missing` | Voice step has no caller-ID pool | Pass `number_pool_id` |
+| `sending_identity_not_ready` | As an error: sender/pool unusable. As a warning on a voice campaign: informational | Fix the sender or pool in the dashboard; warnings do not block |
+| `campaign_enrollment_explicit_audience_required` | `enroll_campaign_contacts` on a segment campaign | Intended; segment automation enrolls |
+| `pacing.recipient_rolling_cap` | A recipient was already called/emailed in the last 24 h | Product rule; the attempt is held with a retry time |
+| `invalid_workflow_request` | Arguments rejected against the schema; `schema_path` names the field | Fix that field; do not retry blindly |
+| `invalid_contact_patch` with `configured_attribute_keys: []` | Unknown custom attribute keys | Omit `custom_attributes` |
+| `held_for_approval` | The agent's policy holds outbound actions for a human | Tell the user; a reviewer approves in the dashboard |
 
-- `search_contacts` / `lookup_contact` before create.
-- `create_contact` with a real `source_reason_code` (lowercase snake_case).
-- **Omit `custom_attributes`** unless a refusal or the configured catalog names an allowed key. If the org has no configured keys, leave custom attributes off.
-- `update_contact` for profile / allowed custom attributes only.
-- Never invent email, phone, or name.
+## Contacts
 
-### 3. Lifecycle
+`search_contacts` / `lookup_contact` before create. `create_contact` with a real `source_reason_code` (lowercase snake_case). Omit `custom_attributes` unless the org has configured keys. Never invent email, phone, or name. Phones are E.164.
 
-- `list_lifecycle_stages`
-- `get_contact_lifecycle_stage`
-- `list_contact_events` for evidence ids
-- `set_contact_lifecycle_stage` only with real `to_stage_id`, `evidence_event_ids`, and `reason_codes`
+## Lifecycle
 
-### 4. Hand off
+`list_lifecycle_stages`, `get_contact_lifecycle_stage`, `list_contact_events` (evidence ids), `set_contact_lifecycle_stage` only with real `to_stage_id`, `evidence_event_ids`, `reason_codes`.
 
-- List/sequence **email** → **`guzli-mcp-email-outreach`**
-- **Voice** dial campaigns → **`guzli-mcp-voice-campaigns`**
-- Single ad-hoc email → `send_email` only when the user asked for one message
+## Editing a draft: `revise_campaign`
 
-## OAuth / parallel calls
+Read the draft with `get_campaign_revision`, edit `definition`, send it back with `existing_draft_revision_id` set to that draft. Send only fields the schema declares, keep the draft's own `step_id`s, and never send server-owned fields (`extraction_schema_version_id`). `revise_campaign` publishes the revision; do not call `publish_*_campaign` afterwards.
 
-Refresh tokens **single-flight** per session: complete one refresh, then reuse those tokens for parallel tool calls. Do not run concurrent refreshes that compete for the same rotated handle.
+## OAuth and parallel calls
+
+The engine rotates refresh tokens once and rejects reuse. Refresh single-flight per session, then reuse the rotated tokens for parallel calls.
 
 ## Hard rules
 
 1. No fabricated contact data.
-2. No silent sending or dialing — confirm when unsure.
-3. Keep this skill to shared primitives; channel details live in sibling skills.
-4. On schema/validation errors, report the tool + error; do not guess fields.
+2. No silent sending or dialing: confirm with the user before the first live send or dial in a thread.
+3. Readiness before every publish.
+4. On a schema error, report the tool and the field; do not guess.
+5. Channel details live in the sibling skills.
 
 ## Verify
 
-A harmless read succeeds (`list_lifecycle_stages`, `search_contacts`, or `list_campaigns`), and returned ids are reusable in channel skills.
+A harmless read succeeds (`list_lifecycle_stages`, `search_contacts`, or `list_campaigns`) and the returned ids are reusable in the channel skills.
