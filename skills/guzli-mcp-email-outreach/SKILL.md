@@ -85,6 +85,8 @@ Every campaign message carries a message id and a per-thread reply address. A re
 
 ## Rules that save you a round trip
 
+- `permission_missing` on a send attempt means the campaign step is `purpose: marketing` with `permission_requirement: required` and the recipient has no recorded marketing consent for email. Either record consent first (`capture_operator_permission` for a contact the operator vouches for, or an import with a consent basis) or use `purpose: transactional` when the mail is transactional. Do not retry the same send.
+
 - Readiness before publish; `campaign_daily_missing` means the daily cap is unset.
 - Explicit audience → you enroll. Segment audience → automation enrolls; `enroll_campaign_contacts` is refused with `campaign_enrollment_explicit_audience_required`.
 - `run_email_campaign` takes exactly one of `all_active` or `enrollment_ids`.
