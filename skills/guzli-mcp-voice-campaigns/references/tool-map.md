@@ -2,7 +2,7 @@
 
 Tool names below are **remote** Guzli MCP names. Your agent host may show a namespace or prefix; match on these remote names when invoking. Confirm live schemas.
 
-## One-call dial workflows (no script, no extraction)
+## One-call dial workflows (agent persona only — no instructions, no extraction; use the step-by-step tools for any call with a purpose)
 
 | Remote name | Role |
 |---|---|

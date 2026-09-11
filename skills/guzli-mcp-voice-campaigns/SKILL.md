@@ -41,22 +41,24 @@ Every voice campaign is a campaign like email: contacts or a segment as the audi
 | `admission_policy` | Two labels you choose, e.g. `{"subject_key":"organization","effect_key":"voice.dial:<campaign-name>"}` |
 | User approval | Ask before the first live dial in a thread |
 
-## Path A — one call, no script: `call_phone_number`
+## Which path
 
-Creates, publishes, enrolls and runs a one-recipient campaign in one call. The agent just talks as itself. There are **no call instructions and no answer extraction** on this path.
+Every call needs instructions. Today the only tools that accept `call_instructions` and answer extraction are the step-by-step ones (Path B). The one-call tools (`call_phone_number`, `call_contacts`, `call_segment`) create, publish, enroll and run in one shot but carry no instructions: the agent talks from its base persona only. Use them only when the user explicitly wants that (for example a test ring). For anything with a purpose, use Path B.
+
+## Path A — one call, agent persona only
 
 ```json
 call_phone_number {
-  "name": "Call Jane",
+  "name": "Test ring",
   "agent_id": "<agent uuid>",
   "phone_number": "+12025550123",
   "number_pool_id": "<pool uuid>",
-  "admission_policy": {"subject_key": "organization", "effect_key": "voice.dial:call-jane"},
+  "admission_policy": {"subject_key": "organization", "effect_key": "voice.dial:test-ring"},
   "cap_policy": {"maximum_daily_channel_units": 2, "maximum_enrollments": 2}
 }
 ```
 
-Response: `status: "queued"`, `campaign_id`, `campaign_revision_id`, `accepted_enrollment_ids`. `call_contacts` (contact ids) and `call_segment` (a segment) are the same shape for more than one recipient.
+Response: `status: "queued"`, `campaign_id`, `campaign_revision_id`, `accepted_enrollment_ids`. `call_contacts` (contact ids) and `call_segment` (a segment) are the same shape.
 
 ## Path B — campaign with instructions and answer extraction (tested sequence)
 
@@ -123,7 +125,7 @@ Use this when the agent must ask specific things and you want the answers back a
 - `revise_campaign` publishes. Calling `publish_voice_campaign` afterwards is a mistake.
 - Explicit audience → you enroll. Segment audience → segment automation enrolls; `enroll_campaign_contacts` is refused with `campaign_enrollment_explicit_audience_required`.
 - Readiness codes: `number_pool_missing` (add the pool), `campaign_daily_missing` (set the daily cap), `sending_identity_not_ready` as an error (pool inactive or no active member: pick another pool), `send_platform_unavailable` / `send_platform_integration_mismatch` / `send_platform_ambiguous` (the agent's voice integration needs fixing in the dashboard).
-- Path A for a quick call; Path B whenever the call has a script or answers to collect.
+- Path B for every real call; Path A only when the user wants the bare agent persona.
 - Few standing campaigns, many enrollments. Never one campaign per phone number.
 
 ## Verify
@@ -132,4 +134,4 @@ Readiness had no error reasons; the run returned `queued` with your enrollment i
 
 ## Anti-patterns
 
-Publishing without `number_pool_id`; omitting the daily cap; a second publish after `revise_campaign`; pasting `extraction_schema_version_id` or foreign `step_id`s into a draft; expecting `call_phone_number` to follow a script; enrolling contacts on a segment campaign; inventing pool, profile or contact ids; using email tools for calls; retrying a dial that is held by the 24-hour cap.
+Publishing without `number_pool_id`; omitting the daily cap; a second publish after `revise_campaign`; pasting `extraction_schema_version_id` or foreign `step_id`s into a draft; using `call_phone_number` for a call that has a purpose (it takes no instructions); enrolling contacts on a segment campaign; inventing pool, profile or contact ids; using email tools for calls; retrying a dial that is held by the 24-hour cap.
