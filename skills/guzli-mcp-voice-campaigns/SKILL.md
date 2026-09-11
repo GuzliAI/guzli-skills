@@ -1,11 +1,10 @@
 ---
 name: guzli-mcp-voice-campaigns
 description: >-
-  Creates and runs Guzli MCP voice campaigns (one-call dial workflows or
-  draft, publish, run) with shared contacts and segments, including the voice
-  profile, caller-ID number pool and readiness rules. Use when the task is outbound
-  or configured voice dialing, voice campaign setup, or voice campaign status via
-  Guzli MCP. Do not use for email outreach (see guzli-mcp-email-outreach).
+  Places phone calls and runs voice campaigns through Guzli MCP: one-call dialing,
+  campaigns with call instructions and structured answer extraction, results and
+  webhooks. Use when the task is outbound calling, voice campaign setup, or reading
+  what a call captured. Do not use for email (see guzli-mcp-email-outreach).
 license: Apache-2.0
 compatibility: >-
   Requires a host that supports Agent Skills (agentskills.io) and a connected
@@ -14,11 +13,11 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.5.0"
+  version: "1.6.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
-  verified_against: "Guzli engine MCP registry, 2026-09-10 (release 1.0.7 live; 1.0.8 pending)"
+  verified_against: "Guzli engine release 1.0.8 (live-tested end to end)"
   hermes:
     tags: [Guzli, MCP, Voice, Campaigns]
     related_skills: [guzli-mcp-core, guzli-mcp-email-outreach]
@@ -26,89 +25,111 @@ metadata:
 
 # Guzli MCP voice campaigns
 
-Install and follow **`guzli-mcp-core`**. Email sequences are skill **`guzli-mcp-email-outreach`**. Tool map: [references/tool-map.md](references/tool-map.md).
+Install and follow **`guzli-mcp-core`** first. Email is skill **`guzli-mcp-email-outreach`**. Tool map: [references/tool-map.md](references/tool-map.md).
 
-Same product shape as email (contacts, segments, standing campaigns, revisions, enrollments) on the same campaign engine: caps, quiet hours, schedule and admission labels mean the same thing. Different channel tools and step config.
+Every voice campaign is a campaign like email: contacts or a segment as the audience, a revision with one voice step, caps, readiness, publish, enroll, run. The agent talks as itself, using the voice profile of the agent. You can give it call instructions and a list of answers to collect.
 
-## Release check first
+## What you need before any call
 
-On the live server, list the tools and read `create_voice_campaign`'s input schema:
+| Fact | How to get it |
+|---|---|
+| `agent_id` | `list_campaigns` (any row) or the user |
+| `number_pool_id` | `list_telephony_number_pools` → an active pool with at least one active member. There is no default pool. Without it readiness says `number_pool_missing` |
+| `voice_profile_id` | `list_voice_profiles` → the agent's profile (ambience, voice, no reasoning). Set it on the campaign step so calls sound like the agent's inbound calls |
+| Contact ids with real E.164 phones | `search_contacts` / `create_contact` |
+| `cap_policy.maximum_daily_channel_units` | You choose it. Required to publish. Usually also `maximum_enrollments` |
+| `admission_policy` | Two labels you choose, e.g. `{"subject_key":"organization","effect_key":"voice.dial:<campaign-name>"}` |
+| User approval | Ask before the first live dial in a thread |
 
-- If it lists `cap_policy` and `number_pool_id`, you are on **1.0.8 or later**: voice campaigns can publish through MCP. Follow this skill as written.
-- If it lists only `name` and `voice_profile_id`, you are on **1.0.7**: `publish_voice_campaign` fails with `send_capability_not_registered` for every voice campaign authored through MCP (engine defect: the hosted tools wrote a channel key the send registry does not recognise). No profile, pool or capability on your side fixes it. Tell the user, and stop before dialing.
+## Path A — one call, no script: `call_phone_number`
 
-## Two ways to dial
+Creates, publishes, enrolls and runs a one-recipient campaign in one call. The agent just talks as itself. There are **no call instructions and no answer extraction** on this path.
 
-| Path | Tools | When |
-|---|---|---|
-| **One call** (create + publish + run) | `call_phone_number` (one E.164 number), `call_contacts` (contact ids), `call_segment` (a segment) | The audience is known and the user has approved dialing |
-| **Step by step** | `create_voice_campaign` → `get_campaign_revision_readiness` → `publish_voice_campaign` → (`enroll_campaign_contacts` for explicit audiences) → `run_voice_campaign` | The user wants to review the draft, caps or schedule first |
-
-Both paths need the same facts below. Never open a new voice campaign per phone number; feed contacts or segments into few standing campaigns.
-
-## Required facts before you dial
-
-| Fact | Source | Notes |
-|---|---|---|
-| `agent_id` | `list_campaigns` (any row) or the user | Required by every voice tool (1.0.8: also on `create_voice_campaign`) |
-| **`number_pool_id`** | `list_telephony_number_pools` → pick an active pool with at least one active member (`get_telephony_number_pool`, `list_telephony_phone_numbers`) | **Required for readiness.** There is **no default pool** by design; omitting it yields `number_pool_missing` |
-| `voice_profile_id` | `list_voice_profiles`, or omit | Optional: the agent's default profile applies when omitted |
-| `cap_policy.maximum_daily_channel_units` | You set it | **Required for publish** (`campaign_daily_missing` otherwise). Usually also `maximum_enrollments` |
-| `admission_policy` | You set it | Labels, not identities (see the email skill for the 1.0.7 caveat) |
-| Phones | Real E.164 numbers on contacts | Never invent |
-| User approval | The thread | Required before the first live dial |
-
-## Canonical workflow (step by step)
-
-```
-- [ ] 1. Core skill: agent_id, contacts with real phones (omit custom_attributes unless allowed)
-- [ ] 2. list_telephony_number_pools → number_pool_id with an active member; list_voice_profiles if a specific voice is wanted
-- [ ] 3. Segment if the audience is ongoing; otherwise explicit audience
-- [ ] 4. create_voice_campaign (name, agent_id, audience_policy, number_pool_id, cap_policy.maximum_daily_channel_units, optional voice_profile_id)
-- [ ] 5. get_campaign / get_campaign_revision (campaign_id, revision_id, lock_version)
-- [ ] 6. get_campaign_revision_readiness → fix every reason → user approval
-- [ ] 7. publish_voice_campaign (campaign_id, revision_id, expected_lock_version, agent_id)
-- [ ] 8. Explicit audience only: enroll_campaign_contacts; segment audience: segment automation enrolls
-- [ ] 9. run_voice_campaign (campaign_id, revision_id)
-- [ ] 10. Report campaign/revision ids, who will be dialed, and the attempt state (list_campaign_call_attempts)
+```json
+call_phone_number {
+  "name": "Call Jane",
+  "agent_id": "<agent uuid>",
+  "phone_number": "+12025550123",
+  "number_pool_id": "<pool uuid>",
+  "admission_policy": {"subject_key": "organization", "effect_key": "voice.dial:call-jane"},
+  "cap_policy": {"maximum_daily_channel_units": 2, "maximum_enrollments": 2}
+}
 ```
 
-### Draft
+Response: `status: "queued"`, `campaign_id`, `campaign_revision_id`, `accepted_enrollment_ids`. `call_contacts` (contact ids) and `call_segment` (a segment) are the same shape for more than one recipient.
 
-If `create_voice_campaign` is slow to return, recover with `list_campaigns` by name, then `get_campaign` / `get_campaign_revision` for `campaign_id`, `draft_revision_id`, and `lock_version`.
+## Path B — campaign with instructions and answer extraction (tested sequence)
 
-`revise_campaign` replaces the draft (caps, pool, profile, call copy, permissions). Send a **complete** draft and remove server-owned fields from any read you started from (`extraction_schema_version_id`). Re-read the live schema; voice payloads are large and versioned.
+Use this when the agent must ask specific things and you want the answers back as structured data.
 
-### Readiness codes
+1. **Create the draft**
+   ```json
+   create_voice_campaign {
+     "name": "Survey Sept", "agent_id": "<agent uuid>",
+     "audience_policy": {"kind": "explicit"},
+     "number_pool_id": "<pool uuid>",
+     "admission_policy": {"subject_key": "organization", "effect_key": "voice.dial:survey-sept"},
+     "cap_policy": {"maximum_daily_channel_units": 50, "maximum_enrollments": 50}
+   }
+   ```
+   Keep `campaign_id`, `revision_id` (this is the draft) and `lock_version`.
 
-| Code | Meaning | Fix |
-|---|---|---|
-| `number_pool_missing` | No caller-ID pool on the step | `revise_campaign` with `number_pool_id`, or recreate with it |
-| `campaign_daily_missing` | Daily channel cap unset | Set `cap_policy.maximum_daily_channel_units` |
-| `sending_identity_not_ready` | Pool inactive or has no active member | Pick another pool (`list_telephony_number_pools`) or fix it in the dashboard |
-| `send_capability_not_registered` | 1.0.7 defect (see Release check) | Wait for 1.0.8 |
-| `send_platform_unavailable` / `send_platform_integration_mismatch` / `send_platform_ambiguous` (1.0.8) | The agent has no voice integration, the wrong one, or several | Fix the agent's voice integration in the dashboard |
+2. **Read the draft**: `get_campaign_revision {"path": {"campaign_id", "revision_id"}}` → `definition`.
 
-### Publish, enroll, run
+3. **Edit `definition.steps[0].channel_config`** (it has `"channel": "voice"`):
+   - `call_instructions`: plain prose. Tested wording: *"Ask the person, one question at a time, for their full name, the best phone number to reach them on, and their favourite colour. Confirm each answer briefly. Once you have all three and have recorded them, ask whether there is anything else you can help with. If not, thank them, say a proper goodbye, and end the call."*
+   - `post_call_extraction`:
+     ```json
+     {"is_enabled": true, "schema_name": "survey",
+      "fields": [
+        {"field_key": "full_name", "label": "Full name", "value_type": "text", "required": true},
+        {"field_key": "phone_number", "label": "Best phone number", "value_type": "phone", "required": true},
+        {"field_key": "favourite_colour", "label": "Favourite colour", "value_type": "text", "required": true}],
+      "require_schema_validation": true, "allow_partial": true}
+     ```
+     `value_type` is one of `text|number|boolean|date|datetime|email|phone|url|enum` (`enum` needs `enum_values`).
+   - `voice_profile_id`: the agent's profile id.
+   - **Delete** `extraction_schema_version_id` (server-owned).
+   - Keep every step's `step_id` exactly as read. Never paste step ids from another revision.
 
-- `publish_voice_campaign` requires `campaign_id`, `revision_id`, `expected_lock_version`, `agent_id`.
-- Explicit audience: `enroll_campaign_contacts` on the **active published** campaign, then `run_voice_campaign`.
-- Segment audience: segment automation enrolls (publish-time sweep of the pinned materialization, then entry facts); do **not** call `enroll_campaign_contacts` (`campaign_enrollment_explicit_audience_required` is intended). Then `run_voice_campaign`.
+4. **Revise — this also publishes**
+   ```json
+   revise_campaign {"campaign_id": "<id>", "source_revision_id": "<revision_id>",
+                    "existing_draft_revision_id": "<revision_id>", "draft": <the edited definition>}
+   ```
+   Send only fields the tool schema declares (drop anything the schema rejects). The response carries `ready` and readiness `reasons`; `sending_identity_not_ready` as a *warning* is fine. **Do not call `publish_voice_campaign` after `revise_campaign`.** The revision is already published.
 
-## Hard rules
+5. **Enroll**: `enroll_campaign_contacts {"campaign_id", "contact_ids": ["<contact uuid>"], "requested_at": "<ISO time>"}` → `disposition: "enrolled"`.
 
-1. Do not use email campaign tools for phone outreach.
-2. No invented phones, profiles, pools or ids. Discover them with the operations above.
-3. No silent dial launches: summarize who will be dialed and get approval first.
-4. No one-campaign-per-number.
-5. Call `get_campaign_revision_readiness` before every publish.
-6. Keep private dial lists out of shared skill text.
-7. OAuth: refresh tokens single-flight per session (see **guzli-mcp-core**).
+6. **Run**: `run_voice_campaign {"campaign_id", "revision_id"}` → `status: "queued"`, `accepted_enrollment_ids`. The dial happens within about a minute.
+
+7. **Watch**: `list_campaign_call_attempts {"path": {"campaign_id"}}` → `in_progress` → `completed` with `duration_seconds`.
+
+## What happens on the call
+
+- No opening line is spoken unless the campaign selects one. The agent starts from your instructions.
+- The agent asks, confirms, and records the answers with its capture tool as it goes (live collection, on by default).
+- The agent ends the call itself: it says goodbye in its own words and calls the end tool. The goodbye is played in full before the hang-up.
+- Tested result: a 2-minute call, three answers captured exactly as spoken, "anything else?" asked, goodbye spoken, call ended by the agent.
+
+## Reading the answers
+
+- `list_campaign_extraction_results {"path": {"campaign_id"}}` and `get_campaign_extraction_result` → `status`, `extraction_results` (your field keys → values), `schema_name`, `voice_session_id`, `campaign_call_attempt_id`.
+- Webhook: subscribe an endpoint to the `voice_session_status` event. After the call completes you receive `status`, `campaign_id`, `provider_call_id`, `duration_seconds`, `recording_url`, `prospect`, and `post_call_extraction` with `structured_data` (same values), `status`, `validation_errors`, `source`.
+
+## Rules that save you a round trip
+
+- One call per recipient per 24 hours. A second attempt is held with reason `pacing.recipient_rolling_cap` and a retry time. This is a product rule, not an error.
+- `revise_campaign` publishes. Calling `publish_voice_campaign` afterwards is a mistake.
+- Explicit audience → you enroll. Segment audience → segment automation enrolls; `enroll_campaign_contacts` is refused with `campaign_enrollment_explicit_audience_required`.
+- Readiness codes: `number_pool_missing` (add the pool), `campaign_daily_missing` (set the daily cap), `sending_identity_not_ready` as an error (pool inactive or no active member: pick another pool), `send_platform_unavailable` / `send_platform_integration_mismatch` / `send_platform_ambiguous` (the agent's voice integration needs fixing in the dashboard).
+- Path A for a quick call; Path B whenever the call has a script or answers to collect.
+- Few standing campaigns, many enrollments. Never one campaign per phone number.
 
 ## Verify
 
-Readiness returned no reasons; draft and published ids known; enrollments match the intended audience; the user approved the live dial; the user gets campaign id, revision id, and the attempt state.
+Readiness had no error reasons; the run returned `queued` with your enrollment id; the call attempt reached `completed`; the extraction result holds the answers; the user has campaign id, revision id and the outcome.
 
 ## Anti-patterns
 
-Publishing without a `number_pool_id`; omitting the daily cap; calling `enroll_campaign_contacts` on a segment-audience campaign; round-tripping `extraction_schema_version_id` into `revise_campaign`; inventing pool or profile ids instead of listing them; using `send_email` / `create_email_campaign` for phone outreach; one voice campaign per number; retrying `publish_voice_campaign` on 1.0.7 hoping the channel-key defect goes away.
+Publishing without `number_pool_id`; omitting the daily cap; a second publish after `revise_campaign`; pasting `extraction_schema_version_id` or foreign `step_id`s into a draft; expecting `call_phone_number` to follow a script; enrolling contacts on a segment campaign; inventing pool, profile or contact ids; using email tools for calls; retrying a dial that is held by the 24-hour cap.

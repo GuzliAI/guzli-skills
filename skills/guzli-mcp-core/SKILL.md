@@ -15,11 +15,11 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.5.0"
+  version: "1.6.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
-  verified_against: "Guzli engine MCP registry, 2026-09-10 (release 1.0.7 live; 1.0.8 pending)"
+  verified_against: "Guzli engine release 1.0.8 (live-tested end to end)"
   hermes:
     tags: [Guzli, MCP, Contacts, CRM]
     related_skills: [guzli-mcp-email-outreach, guzli-mcp-voice-campaigns]
@@ -29,98 +29,80 @@ metadata:
 
 Portable foundation for Guzli MCP on any Agent Skills host. Channel runbooks:
 
-- Email outreach → skill **`guzli-mcp-email-outreach`**
-- Voice campaigns → skill **`guzli-mcp-voice-campaigns`**
+- Email (one-off and campaigns) → skill **`guzli-mcp-email-outreach`**
+- Phone calls and voice campaigns → skill **`guzli-mcp-voice-campaigns`**
 
 Tool cheat sheet: [references/tool-map.md](references/tool-map.md).
 
-## Host setup (all agents)
+## Host setup
 
-1. Connect Guzli MCP in your product UI or config (`https://mcp.guzli.com/mcp`).
-2. Confirm tools from that server are callable (list/search tools in your host).
-3. Call tools by **remote name** (example: `search_contacts`). Hosts may prefix names; match on the remote/suffix name.
-4. Re-read each tool's **input schema** before calling. Required fields change across releases, and the server rejects undeclared arguments.
-
-Do not assume Cursor-, Claude-, or Codex-specific tool APIs. Use whatever MCP invocation your host provides.
+1. Connect Guzli MCP (`https://mcp.guzli.com/mcp`, OAuth via gateway.guzli.com).
+2. List the server's tools in your host; call them by **remote name** (example `search_contacts`). Hosts may prefix names; match on the suffix.
+3. Read a tool's **input schema** before calling it. The server rejects undeclared arguments with `invalid_workflow_request` and the path of the offending field.
 
 ## The two tool layers
 
-Guzli serves two kinds of tools from the same connection. Both are discoverable with your host's tool listing; if you do not see a tool named below, list again with a search filter before concluding it is absent.
-
 | Layer | What it is | Examples |
 |---|---|---|
-| **Workflows** (about 25) | One-call operations that do several engine steps for you | `create_email_campaign`, `email_segment`, `call_phone_number`, `run_voice_campaign`, `send_email`, `enroll_campaign_contacts` |
-| **Operations** (about 140) | Direct reads and writes on the engine, named `verb_object` | `list_campaigns`, `get_campaign_revision_readiness`, `list_telephony_number_pools`, `list_voice_profiles`, `list_telephony_phone_numbers`, `search_contacts`, `list_segment_members` |
+| **Workflows** (about 25) | One call that does several engine steps | `send_email`, `create_email_campaign`, `email_segment`, `call_phone_number`, `create_voice_campaign`, `revise_campaign`, `run_voice_campaign`, `enroll_campaign_contacts` |
+| **Operations** (about 140) | Direct reads and writes, named `verb_object` | `list_campaigns`, `get_campaign_revision`, `get_campaign_revision_readiness`, `list_telephony_number_pools`, `list_voice_profiles`, `list_campaign_extraction_results` |
 
-Rule of thumb: use a **workflow** to act, and an **operation** to discover an id or to check state before acting.
+Use a workflow to act, an operation to find an id or check state.
 
-## Discovery: where ids come from
+## Where ids come from
 
-| Need | Tool | Notes |
-|---|---|---|
-| `agent_id` | `list_campaigns` (any row) or ask the user | Required by every campaign-creating tool |
-| Voice profile | `list_voice_profiles` / `get_voice_profile` | Optional on voice tools: the agent's default profile applies when omitted |
-| Caller-ID number pool | `list_telephony_number_pools` / `get_telephony_number_pool` | **Required** for voice publish readiness. There is no default pool by design |
-| Owned phone numbers | `list_telephony_phone_numbers` | Pool members are phone numbers |
-| Campaign state | `get_campaign`, `get_campaign_revision`, `list_campaign_revisions` | `lock_version` for publish comes from here |
-| **Publish readiness** | `get_campaign_revision_readiness` | Call it **before** `publish_*`; it names every blocking reason (see codes below) |
-| Segment state | `get_segment_readiness`, `list_segment_members`, `list_segment_entry_facts` | Members list is current membership only |
+| Need | Tool |
+|---|---|
+| `agent_id` | `list_campaigns` (any row) or the user |
+| Contacts | `search_contacts`, `lookup_contact`, `create_contact` |
+| Voice profile | `list_voice_profiles` (the agent's profile) |
+| Caller-ID number pool | `list_telephony_number_pools` (an active pool with an active member; there is no default) |
+| Campaign state, `lock_version`, draft `definition` | `get_campaign`, `get_campaign_revision`, `list_campaign_revisions` |
+| Readiness before publish | `get_campaign_revision_readiness` |
+| Segments | `get_segment_field_catalog`, `create_segment`, `materialize_segment`, `get_segment_readiness`, `list_segment_members` |
+| Call outcomes and captured answers | `list_campaign_call_attempts`, `list_campaign_extraction_results`, `get_campaign_extraction_result` |
 
-## Readiness and refusal codes you will meet
+## The campaign shape (same for email and voice)
+
+`create_*_campaign` → (optional `get_campaign_revision` → edit → `revise_campaign`, which publishes) → or `get_campaign_revision_readiness` → `publish_*_campaign` → `enroll_campaign_contacts` (explicit audiences only) → `run_*_campaign` → check attempts / results. One-call shortcuts (`email_contacts`, `email_segment`, `call_phone_number`, `call_contacts`, `call_segment`) do the whole chain for a fresh cohort; they carry no script and no extraction.
+
+## Codes you will meet
 
 | Code | Meaning | What to do |
 |---|---|---|
-| `campaign_daily_missing` | `cap_policy.maximum_daily_channel_units` is not set | Set it on create or with `revise_campaign`, then publish |
-| `number_pool_missing` | Voice step has no caller-ID pool | Pass `number_pool_id` (list with `list_telephony_number_pools`) |
-| `sending_identity_not_ready` | Email identity or voice pool not usable | Read the readiness detail; fix the pool or sender in the dashboard |
-| `send_capability_not_registered` | Step channel key is not a registered send platform | Engine defect on 1.0.7 for voice (fixed in 1.0.8). Nothing on the client side fixes it |
-| `campaign_enrollment_explicit_audience_required` | `enroll_campaign_contacts` on a segment-audience campaign | Intended. Segment campaigns are populated by their segment automation |
-| `invalid_workflow_request` | Arguments rejected at admission | Re-read the schema; on 1.0.7 `run_email_campaign` returns this for **valid** requests (fixed in 1.0.8) |
-| `invalid_contact_patch` with `configured_attribute_keys: []` | Unknown custom attribute keys | Omit `custom_attributes`; the org has none configured |
+| `campaign_daily_missing` | `cap_policy.maximum_daily_channel_units` unset | Set it (create or `revise_campaign`) |
+| `number_pool_missing` | Voice step has no caller-ID pool | Pass `number_pool_id` |
+| `sending_identity_not_ready` | As an error: sender/pool unusable. As a warning on a voice campaign: informational | Fix the sender or pool in the dashboard; warnings do not block |
+| `campaign_enrollment_explicit_audience_required` | `enroll_campaign_contacts` on a segment campaign | Intended; segment automation enrolls |
+| `pacing.recipient_rolling_cap` | A recipient was already called/emailed in the last 24 h | Product rule; the attempt is held with a retry time |
+| `invalid_workflow_request` | Arguments rejected against the schema; `schema_path` names the field | Fix that field; do not retry blindly |
+| `invalid_contact_patch` with `configured_attribute_keys: []` | Unknown custom attribute keys | Omit `custom_attributes` |
+| `held_for_approval` | The agent's policy holds outbound actions for a human | Tell the user; a reviewer approves in the dashboard |
 
 ## Contacts
 
-- `search_contacts` / `lookup_contact` before create.
-- `create_contact` with a real `source_reason_code` (lowercase snake_case).
-- **Omit `custom_attributes`** unless a refusal or the configured catalog names an allowed key. `configured_attribute_keys: []` means none are configured; unknown keys are rejected, never silently dropped.
-- `update_contact` for profile or allowed custom attributes only.
-- Never invent email, phone, or name. Phones are E.164.
+`search_contacts` / `lookup_contact` before create. `create_contact` with a real `source_reason_code` (lowercase snake_case). Omit `custom_attributes` unless the org has configured keys. Never invent email, phone, or name. Phones are E.164.
 
 ## Lifecycle
 
-- `list_lifecycle_stages`
-- `get_contact_lifecycle_stage`
-- `list_contact_events` for evidence ids
-- `set_contact_lifecycle_stage` only with real `to_stage_id`, `evidence_event_ids`, and `reason_codes`
+`list_lifecycle_stages`, `get_contact_lifecycle_stage`, `list_contact_events` (evidence ids), `set_contact_lifecycle_stage` only with real `to_stage_id`, `evidence_event_ids`, `reason_codes`.
 
-## Revising a draft (`revise_campaign`)
+## Editing a draft: `revise_campaign`
 
-`revise_campaign` takes a **complete draft**. When you build it from a `get_campaign_revision` read, **remove server-owned fields** before sending, in particular `extraction_schema_version_id`. Sending them back is rejected as `invalid_workflow_request`.
+Read the draft with `get_campaign_revision`, edit `definition`, send it back with `existing_draft_revision_id` set to that draft. Send only fields the schema declares, keep the draft's own `step_id`s, and never send server-owned fields (`extraction_schema_version_id`). `revise_campaign` publishes the revision; do not call `publish_*_campaign` afterwards.
 
-## OAuth / parallel calls
+## OAuth and parallel calls
 
-The engine rotates refresh tokens once and rejects reuse. Refresh **single-flight** per session: complete one refresh, then reuse those tokens for parallel tool calls. "Sibling already rotated tokens" means your client raced itself.
-
-## Release compatibility (read this once per session)
-
-| Behaviour | 1.0.7 (live) | 1.0.8 (pending) |
-|---|---|---|
-| `run_email_campaign` | Rejects every valid request (`invalid_workflow_request`) | Fixed |
-| Voice publish | Blocked by `send_capability_not_registered` | Fixed |
-| Voice tools accept `cap_policy`, quiet hours, schedule, admission label, `number_pool_id` | No | Yes; `create_voice_campaign` also requires `agent_id` and `audience_policy` |
-| Second segment campaign with the same `admission_policy.effect_key` | Publish fails (identity collision) | Fixed; the key is a label |
-| Pinned segment publish | Can miss a member re-evaluated after the pin | Fixed |
-
-Check the live server's tool schemas to tell which release you are on: on 1.0.8 `create_voice_campaign` lists `cap_policy` and `number_pool_id`.
+The engine rotates refresh tokens once and rejects reuse. Refresh single-flight per session, then reuse the rotated tokens for parallel calls.
 
 ## Hard rules
 
 1. No fabricated contact data.
-2. No silent sending or dialing. Confirm with the user before the first live send or dial in a thread.
-3. Keep this skill to shared primitives; channel details live in sibling skills.
-4. On schema or validation errors, report the tool and the error; do not guess fields.
-5. Call `get_campaign_revision_readiness` before every publish.
+2. No silent sending or dialing: confirm with the user before the first live send or dial in a thread.
+3. Readiness before every publish.
+4. On a schema error, report the tool and the field; do not guess.
+5. Channel details live in the sibling skills.
 
 ## Verify
 
-A harmless read succeeds (`list_lifecycle_stages`, `search_contacts`, or `list_campaigns`), and returned ids are reusable in channel skills.
+A harmless read succeeds (`list_lifecycle_stages`, `search_contacts`, or `list_campaigns`) and the returned ids are reusable in the channel skills.
