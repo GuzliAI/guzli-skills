@@ -28,6 +28,13 @@ Tool names below are **remote** Guzli MCP names. Your host may prefix them; matc
 | `list_campaign_enrollments` / `get_campaign_enrollment_summary` | Enrollment dispositions |
 | `get_campaign_activity` | What was sent / queued / held |
 
+## Permissions (operations; required before any run)
+
+| Remote name | Role |
+|---|---|
+| `list_contact_permission_heads` | `{"path": {"contact_id"}}` → active permissions per channel and purpose |
+| `capture_operator_permission` | `{"path": {"contact_id"}, "body": {...}}` → records one; body in SKILL.md "Consent before any email campaign" |
+
 ## Segments and contacts (operations)
 
 `get_segment_field_catalog`, `create_segment`, `materialize_segment`, `get_segment_readiness`, `list_segment_members`, `search_contacts`, `lookup_contact`, `create_contact`, `update_contact`, `list_campaigns`, `get_campaign`, `get_campaign_revision`.

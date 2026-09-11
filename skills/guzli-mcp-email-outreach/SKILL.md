@@ -48,6 +48,31 @@ The sender is the agent's configured address. The result is a structured outcome
 | Contact ids with real emails | `search_contacts` / `create_contact` |
 | A verified sender | Readiness tells you if the agent's sending identity is not ready; fix it in the dashboard |
 
+## Consent before any email campaign (required)
+
+Every campaign email is checked against a recorded permission for the contact, channel `email` and the campaign's `purpose`. Without one the attempt fails with `permission_missing` and nothing is sent. `send_email` (one-off) is not a campaign and is not checked this way.
+
+1. Check: `list_contact_permission_heads {"path": {"contact_id": "<contact uuid>"}}`. You need an item with `channel_key: "email"`, `purpose` equal to your campaign's purpose and `state: "active"`.
+2. If missing, confirm the basis with the user and record it. Tested body (every field is required; `captured_at` is now in ISO-8601; `notice_text_digest` is the SHA-256 hex of the consent statement you are recording, for example the user's sentence granting it; the `*_ref`/`*_id` strings are your own audit labels):
+   ```json
+   capture_operator_permission {
+     "path": {"contact_id": "<contact uuid>"},
+     "body": {
+       "identifier_type": "email", "identifier_value": "<the contact's email address>",
+       "channel_key": "email", "purpose": "transactional",
+       "basis_key": "existing_relationship",
+       "captured_at": "2026-09-11T14:00:00Z", "expires_at": null,
+       "source_ref": "operator confirmation in chat 2026-09-11",
+       "notice_text_digest": "<64 hex chars>", "notice_version": "chat-v1",
+       "tenant_compliance_profile_version": 1,
+       "evidence_ref": "chat 2026-09-11 user message", "attribution_ref": "operator:<user email>",
+       "causation_id": "consent-<contact uuid>", "correlation_id": "<campaign name>"
+     }
+   }
+   ```
+   Response: `permission_record_id`, `state: "active"`, `channel_key`, `purpose`, `basis_key`. Use `purpose: "marketing"` with `explicit_opt_in` or `existing_relationship` for marketing mail; `recipient_requested`, `contract_or_service`, `legal_obligation` are transactional only; `cold_b2b` is marketing only. The organisation's allowed bases (dashboard) are usually `explicit_opt_in`, `existing_relationship`, `recipient_requested`, `contract_or_service`; another basis fails the send with `permission_basis_not_allowed`.
+3. One record per contact, per channel, per purpose. `identifier_value` must be the address the campaign will send to.
+
 ## Path A — one call for a fresh cohort
 
 - `email_contacts` (explicit contact ids) or `email_segment` (a materialized segment): creates, publishes, enrolls and queues in one call. Required: `name`, `agent_id`, `subject`, `body_text`, `tenant_postal_address`, `purpose`, `admission_policy`, `request_id` (uuid), `requested_at` (ISO time), plus `contact_ids` or `segment_id` + `segment_version_id` + `maximum_age_seconds`. Add `cap_policy`, `link`, `description` as needed.
@@ -85,8 +110,7 @@ Every campaign message carries a message id and a per-thread reply address. A re
 
 ## Rules that save you a round trip
 
-- `permission_missing` on a send attempt means the campaign step is `purpose: marketing` with `permission_requirement: required` and the recipient has no recorded marketing consent for email. Either record consent first (`capture_operator_permission` for a contact the operator vouches for, or an import with a consent basis) or use `purpose: transactional` when the mail is transactional. Do not retry the same send.
-
+- `permission_missing` on a send attempt: the recipient has no active permission for `email` with the campaign's `purpose`. Transactional needs one as much as marketing does. Record it (section above) and run again; do not retry the same run.
 - Readiness before publish; `campaign_daily_missing` means the daily cap is unset.
 - Explicit audience → you enroll. Segment audience → automation enrolls; `enroll_campaign_contacts` is refused with `campaign_enrollment_explicit_audience_required`.
 - `run_email_campaign` takes exactly one of `all_active` or `enrollment_ids`.
@@ -96,8 +120,8 @@ Every campaign message carries a message id and a per-thread reply address. A re
 
 ## Verify
 
-Readiness had no error reasons; the campaign is published; the enrollment summary matches the intended audience; the run returned `queued`; the user has campaign id, revision id and the outcome.
+Every recipient has an active `email` permission for the campaign's purpose; readiness had no error reasons; the campaign is published; the enrollment summary matches the intended audience; the run returned `queued`; the user has campaign id, revision id and the outcome.
 
 ## Anti-patterns
 
-Skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.
+Running a campaign before checking permissions; recording a permission the user did not confirm; skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.
