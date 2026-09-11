@@ -68,11 +68,15 @@ Use a workflow to act, an operation to find an id or check state.
 
 ## Consent before any campaign send (required)
 
-Every campaign send, email or voice, marketing or transactional, is checked against a recorded permission for that contact, that channel and that purpose. No record means the attempt fails with `permission_missing`. Nothing sends until a record exists. Before enrolling anyone:
+Voice campaign sends are always checked against a recorded permission for that contact, channel `voice_twilio` and purpose `marketing`; email campaign sends are checked only when the step's `permission_requirement` is `"required"` (the email default is optional). No record on a checked step means the attempt fails with `permission_missing`. Before enrolling anyone into a checked campaign:
 
 1. `list_contact_permission_heads {"path": {"contact_id": "<contact uuid>"}}` → `items[]` with `channel_key`, `purpose`, `basis_key`, `state`. You need an item with `state: "active"`, the channel you will use (`email`, or `voice_twilio` for calls) and the purpose of your campaign.
 2. If there is none, ask the user on what basis this person may be contacted, then record it with `capture_operator_permission` (exact body in the email and voice skills). Bases: `explicit_opt_in`, `existing_relationship` (either purpose); `recipient_requested`, `contract_or_service`, `legal_obligation` (transactional only); `cold_b2b` (marketing only); `legitimate_interest`. The organisation's allowed bases are set in the dashboard; the usual set is `explicit_opt_in`, `existing_relationship`, `recipient_requested`, `contract_or_service`. A basis outside that set fails the send with `permission_basis_not_allowed`.
 3. Never record a permission the user did not confirm. The record names who vouched for it.
+
+## How refusals look
+
+A refused call returns an error result. Its text is JSON: `{"reason_code": "…", …facts…}` such as `required`, `details`, `schema_path` or `engine_status`. That JSON is the whole answer; the fix is the named field. Do one corrected call, not a loop.
 
 ## Codes you will meet
 
@@ -86,6 +90,8 @@ Every campaign send, email or voice, marketing or transactional, is checked agai
 | `invalid_workflow_request` | Arguments rejected against the schema; `schema_path` names the field | Fix that field; do not retry blindly |
 | `invalid_contact_patch` with `configured_attribute_keys: []` | Unknown custom attribute keys | Omit `custom_attributes` |
 | `held_for_approval` | The agent's policy holds outbound actions for a human | Tell the user; a reviewer approves in the dashboard |
+| `pacing.recipient_rolling_cap` (held) | The recipient was contacted on this channel in the last 24 h | Product rule; wait for the retry time or use another recipient |
+| Any refusal | Comes back as an error result whose text is JSON with `reason_code` + facts | Read the JSON and act on the named field; never retry blindly |
 | `permission_missing` / `permission_inactive` / `permission_basis_not_allowed` | No active permission for this contact, channel and purpose, or its basis is outside the organisation's allowed set | Record one with `capture_operator_permission` (see "Consent before any campaign send"); do not retry the same run |
 
 ## Contacts
@@ -108,7 +114,7 @@ The engine rotates refresh tokens once and rejects reuse. Refresh single-flight 
 
 1. No fabricated contact data.
 2. No silent sending or dialing: confirm with the user before the first live send or dial in a thread.
-3. Readiness before every publish; a permission record for every recipient before every run.
+3. Readiness before every publish; a permission record for every recipient of a consent-checked campaign (voice always; email when the step says required).
 4. On a schema error, report the tool and the field; do not guess.
 5. Channel details live in the sibling skills.
 

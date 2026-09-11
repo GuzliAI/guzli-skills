@@ -143,6 +143,7 @@ Use this when you want to review or edit the draft before it publishes. `create_
 
 ## What happens on the call
 
+- Your `call_instructions` are placed in the agent's system prompt as a "Campaign call instructions" section; the agent follows them from the first turn. Write them as instructions to the agent ("You are calling on behalf of … Ask …"), not as a description.
 - No opening line is spoken unless the campaign selects one. The agent starts from your instructions.
 - The agent asks, confirms, and records the answers with its capture tool as it goes (live collection, on by default).
 - The agent ends the call itself: it says goodbye in its own words and calls the end tool. The goodbye is played in full before the hang-up.
@@ -159,7 +160,7 @@ Every call also gets a written summary without any setup: after the call the eng
 
 ## Rules that save you a round trip
 
-- One call per recipient per 24 hours. A second attempt is held with reason `pacing.recipient_rolling_cap` and a retry time. This is a product rule, not an error.
+- One call per recipient per 24 hours. A second attempt is held with reason `pacing.recipient_rolling_cap` and a retry time. This is a product rule, not an error; do not poll it — use another consented recipient or wait for the retry time.
 - `revise_campaign` publishes. Calling `publish_voice_campaign` afterwards is a mistake.
 - Explicit audience → you enroll. Segment audience → segment automation enrolls; `enroll_campaign_contacts` is refused with `campaign_enrollment_explicit_audience_required`.
 - Readiness codes: `number_pool_missing` (add the pool), `campaign_daily_missing` (set the daily cap), `sending_identity_not_ready` as an error (pool inactive or no active member: pick another pool), `send_platform_unavailable` / `send_platform_integration_mismatch` / `send_platform_ambiguous` (the agent's voice integration needs fixing in the dashboard).

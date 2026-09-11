@@ -48,9 +48,11 @@ The sender is the agent's configured address. The result is a structured outcome
 | Contact ids with real emails | `search_contacts` / `create_contact` |
 | A verified sender | Readiness tells you if the agent's sending identity is not ready; fix it in the dashboard |
 
-## Consent before any email campaign (required)
+## Consent for email campaigns (optional by default)
 
-Every campaign email is checked against a recorded permission for the contact, channel `email` and the campaign's `purpose`. Without one the attempt fails with `permission_missing` and nothing is sent. `send_email` (one-off) is not a campaign and is not checked this way.
+Email campaigns do not require a recorded consent by default: the email channel's consent requirement is `optional`, and campaigns created through these tools inherit it. A step becomes consent-checked only when its `permission_requirement` is set to `"required"` (through `revise_campaign`). A required step with no matching permission record fails with `permission_missing` and nothing is sent. Voice campaigns are always required (see the voice skill). `send_email` (one-off) is not a campaign and is not checked this way.
+
+When a step is required, or the user asks you to record consent:
 
 1. Check: `list_contact_permission_heads {"path": {"contact_id": "<contact uuid>"}}`. You need an item with `channel_key: "email"`, `purpose` equal to your campaign's purpose and `state: "active"`.
 2. If missing, confirm the basis with the user and record it. Tested body (every field is required; `captured_at` is now in ISO-8601; `notice_text_digest` is the SHA-256 hex of the consent statement you are recording, for example the user's sentence granting it; the `*_ref`/`*_id` strings are your own audit labels):
@@ -91,7 +93,15 @@ Every campaign email is checked against a recorded permission for the contact, c
 
 `get_campaign_revision` → edit `definition` → `revise_campaign {"campaign_id","source_revision_id","existing_draft_revision_id": <the draft>, "draft": <definition>}`. Send only fields the schema declares; keep the draft's own `step_id`s. **`revise_campaign` publishes the revision.** Do not call `publish_email_campaign` afterwards.
 
-Common edit: make the unsubscribe footer optional for a campaign — set the email step's `unsubscribe_requirement` to `"optional"` in the draft (`"required"` is the default). Only do this for mail that is not marketing.
+Common edit: make the unsubscribe footer optional for a campaign — set the email step's `unsubscribe_requirement` to `"optional"` in the draft (`"required"` is what the create tools write). Only do this for mail that is not marketing, or when the user asks for a test. Exact sequence, one call per step, no re-planning between them:
+
+1. `create_email_campaign` (draft) → keep `campaign_id`, `revision_id`.
+2. `get_campaign_revision {"path": {"campaign_id", "revision_id"}}` → `definition`.
+3. Set `definition.steps[0].unsubscribe_requirement = "optional"`; delete `extraction_schema_version_id` if present; keep every `step_id`.
+4. `revise_campaign {"campaign_id", "source_revision_id": revision_id, "existing_draft_revision_id": revision_id, "draft": definition}` → this publishes; do not call `publish_email_campaign`.
+5. `enroll_campaign_contacts` → 6. `run_email_campaign` with the returned `enrollment_ids`.
+
+Look up the contact once and reuse its id. Do not refresh the tool list or search the contact again between steps.
 
 ## Segments
 
@@ -110,7 +120,9 @@ Every campaign message carries a message id and a per-thread reply address. A re
 
 ## Rules that save you a round trip
 
-- `permission_missing` on a send attempt: the recipient has no active permission for `email` with the campaign's `purpose`. Transactional needs one as much as marketing does. Record it (section above) and run again; do not retry the same run.
+- `permission_missing` on a send attempt: the step is `permission_requirement: "required"` and the recipient has no active permission for `email` with the campaign's `purpose`. Record it (section above) and run again; do not retry the same run.
+- Subject and body: use plain ASCII (no curly quotes, em dashes, arrows or emoji) in `subject` and `body_text` for `email_contacts`, `email_segment` and `create_email_campaign` until the HTML email release; non-ASCII text is refused at create with `campaign content digest must equal expected digest`.
+- Refusals arrive as an error result whose text is JSON with `reason_code` and the facts you need (`required`, `details`, `engine_status`). Read the JSON; it names the fix. A host-side "structured content does not match the output schema" message is a host bug, not a Guzli refusal.
 - Readiness before publish; `campaign_daily_missing` means the daily cap is unset.
 - Explicit audience → you enroll. Segment audience → automation enrolls; `enroll_campaign_contacts` is refused with `campaign_enrollment_explicit_audience_required`.
 - `run_email_campaign` takes exactly one of `all_active` or `enrollment_ids`.
@@ -120,8 +132,8 @@ Every campaign message carries a message id and a per-thread reply address. A re
 
 ## Verify
 
-Every recipient has an active `email` permission for the campaign's purpose; readiness had no error reasons; the campaign is published; the enrollment summary matches the intended audience; the run returned `queued`; the user has campaign id, revision id and the outcome.
+Readiness had no error reasons; the campaign is published; the enrollment summary matches the intended audience; the run returned `queued`; the user has campaign id, revision id and the outcome.
 
 ## Anti-patterns
 
-Running a campaign before checking permissions; recording a permission the user did not confirm; skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.
+Recording a permission the user did not confirm; re-searching the contact or re-listing tools between steps; skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.
