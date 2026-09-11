@@ -119,6 +119,10 @@ Use this when the agent must ask specific things and you want the answers back a
 - `list_campaign_extraction_results {"path": {"campaign_id"}}` and `get_campaign_extraction_result` → `status`, `extraction_results` (your field keys → values), `schema_name`, `voice_session_id`, `campaign_call_attempt_id`.
 - Webhook: subscribe an endpoint to the `voice_session_status` event. After the call completes you receive `status`, `campaign_id`, `provider_call_id`, `duration_seconds`, `recording_url`, `prospect`, and `post_call_extraction` with `structured_data` (same values), `status`, `validation_errors`, `source`.
 
+## Call summary (automatic)
+
+Every call also gets a written summary without any setup: after the call the engine writes `post_event_summary` onto the call attempt with `headline`, `topic`, `intent`, `situation`, `customer_ask`, `outcome`, `outcome_tag`. Read it with `list_campaign_call_attempts` / `get_campaign_call_attempt`. It is produced shortly after the call ends, so it is not part of the `voice_session_status` webhook payload; poll the attempt if you need it. Do not add a "summary" extraction field to get one.
+
 ## Rules that save you a round trip
 
 - One call per recipient per 24 hours. A second attempt is held with reason `pacing.recipient_rolling_cap` and a retry time. This is a product rule, not an error.

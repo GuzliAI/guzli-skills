@@ -21,7 +21,7 @@ Tool names below are **remote** Guzli MCP names. Your agent host may show a name
 | `publish_voice_campaign` | Publish a draft you did NOT revise (`campaign_id`, `revision_id`, `expected_lock_version`, `agent_id`). Never after `revise_campaign` |
 | `enroll_campaign_contacts` | Explicit-audience campaigns: `campaign_id`, `contact_ids`, `requested_at` |
 | `run_voice_campaign` | Start dialing: `campaign_id`, `revision_id` → `queued` |
-| `list_campaign_call_attempts` / `get_campaign_call_attempt` | Dial attempts and outcomes (operation) |
+| `list_campaign_call_attempts` / `get_campaign_call_attempt` | Dial attempts, outcomes, recording, and the automatic `post_event_summary` (operation) |
 | `list_campaign_extraction_results` / `get_campaign_extraction_result` | Captured answers per call (operation) |
 | `get_campaign_enrollment_summary` / `list_campaign_enrollments` | Enrollment dispositions |
 
