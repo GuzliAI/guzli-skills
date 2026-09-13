@@ -105,7 +105,7 @@ Field-only braces below are argument shorthand, not copy-ready JSON. Copilot inp
 
 ### Changing a draft before publish: `revise_campaign`
 
-`get_campaign_revision` → edit `definition` → `revise_campaign {"campaign_id","source_revision_id","existing_draft_revision_id": <the draft>, "draft": <definition>}`. Send only fields the schema declares; keep the draft’s own `step_id`s and remove email `artifact_ref` / `artifact_digest` plus `extraction_schema_version_id`. **`revise_campaign` publishes the revision.** Do not call `publish_email_campaign` afterwards.
+`get_campaign_revision` → edit `definition` → `revise_campaign {"campaign_id","source_revision_id","existing_draft_revision_id": <the draft>, "draft": <definition>}`. Send only fields the schema declares; keep the draft’s own `step_id`s and remove email `artifact_ref` / `artifact_digest`, `email_content_policy_id`, `email_renderer_id`, `email_content_digest_version`, plus `extraction_schema_version_id`. **`revise_campaign` publishes the revision.** Do not call `publish_email_campaign` afterwards.
 
 Common edit: make the unsubscribe footer optional for a campaign — set the email step's `unsubscribe_requirement` to `"optional"` at the step level in the draft (`"optional"` is the email manifest default). Choose this explicitly to match the user’s campaign requirements.
 
@@ -133,7 +133,7 @@ Create and publish the campaign with `subject: "{{member_metadata.outreach_subje
 
 Snapshot values are non-null scalars; strings must be plain text, at most 18,000 characters each, and the per-contact metadata must fit 32 KiB (32,768 bytes), at most 50 keys. `body_html` can reference these scalar values as text; do not store HTML fragments in contact attributes for insertion as markup. Use the segment field catalog’s defined attribute keys and operators to select the audience.
 
-<!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json (update_contact and enrollment inputs); contracts/mcp-registry/generated/package-workflows.json (enroll_campaign_contacts); contacts/attribute_definition.py; supabase/migrations/20260912_221550_campaign_html_member_metadata_snapshot.sql (macro-referenced snapshot including subject/text/HTML); campaigns/member_metadata_contracts.py (limits); campaigns/revisions/merge_preview.py (merge_field_missing). -->
+<!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json (update_contact and enrollment inputs); contracts/mcp-registry/generated/package-workflows.json (enroll_campaign_contacts); contacts/attribute_definition.py; supabase/migrations/20260912_221550_campaign_html_member_metadata_snapshot.sql (macro-referenced snapshot including subject/text/HTML); campaigns/member_metadata_contracts.py (limits); campaigns/execution/merge_fields.py (merge_field_missing). -->
 
 ## Segments
 
@@ -173,3 +173,5 @@ Running a permission-required campaign before checking permissions; recording a 
 ## Changelog
 
 - **1.7.0 (2026-09-13)** — Corrects send_email inputs and consent defaults; documents independent HTML/text, unsubscribe validity, per-contact merge snapshots, creation knobs and nonpublishing draft-step patches.
+
+<!-- Email full-draft cleanup source at 704e0b48e: campaigns/revisions/steps.py, email_policy_tuple and compile_email_artifact; campaigns/revisions/step_patch_merge.py. -->

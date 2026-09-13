@@ -118,7 +118,7 @@ Passing an `api-operation:` id returns `status: "denied"`, `reason_code: "held_c
 
 `create_contact` takes `source_reason_code`; `update_contact` takes `contact_id` and `reason_code`. Both accept `custom_attributes` with scalar values. An unknown valid key defines an organization attribute on first non-null write: boolean → `boolean`, number → `number`, valid `YYYY-MM-DD` → `date`, other strings → `text`. The label comes from the key. `null` on an unknown key defines nothing; existing attributes keep their type. Keys must match `^[a-z][a-z0-9_]{0,63}$`. Bad names or nested values are refused with `invalid_contact_patch` and `invalid_attribute_keys` (a served schema can reject nested values before mutation). Correct the values; do not discard valid unknown keys.
 
-`search_contacts` returns `schema`; inspect it for existing types. `get_segment_field_catalog` lists defined attributes and supported operators before segment authoring. Omitted update fields stay unchanged; explicit null retracts an existing fact.
+`search_contacts` returns `schema`; inspect it for existing types. `get_segment_field_catalog` lists defined attributes and supported operators before segment authoring. Omitted update fields stay unchanged; explicit null retracts an existing fact. For attributes, use per-key null; `custom_attributes: null` does not retract the entire set.
 
 <!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json, create_contact/update_contact/search_contacts/get_segment_field_catalog; contacts/attribute_definition.py; contacts/service.py; contacts/tool_mutations/contracts.py; tests/contacts/test_self_serve_attributes_postgres.py. -->
 
@@ -128,7 +128,7 @@ Passing an `api-operation:` id returns `status: "denied"`, `reason_code: "held_c
 
 ## Editing a draft: `revise_campaign`
 
-Read the draft with `get_campaign_revision`, edit `definition`, send it back with `existing_draft_revision_id` set to that draft. Send only fields the schema declares, keep the draft's own `step_id`s, and never send server-owned fields (`extraction_schema_version_id`; email `artifact_ref` and `artifact_digest`). `revise_campaign` publishes the revision; do not call `publish_*_campaign` afterwards.
+Read the draft with `get_campaign_revision`, edit `definition`, send it back with `existing_draft_revision_id` set to that draft. Send only fields the schema declares, keep the draft's own `step_id`s, and never send server-owned fields (`extraction_schema_version_id`; email `artifact_ref`, `artifact_digest`, `email_content_policy_id`, `email_renderer_id` and `email_content_digest_version`). `revise_campaign` publishes the revision; do not call `publish_*_campaign` afterwards.
 
 ## OAuth and parallel calls
 
@@ -165,3 +165,5 @@ A harmless read succeeds (`list_lifecycle_stages`, `search_contacts`, or `list_c
 ## Changelog
 
 - **1.7.0 (2026-09-13)** — Audits served flat inputs and permission defaults; distinguishes copilot/tenant authorization, held-only status polling and self-serve attributes; restores historical compatibility with 1.0.16 current.
+
+<!-- Full-draft server-owned email fields: engine 704e0b48e campaigns/revisions/steps.py and campaigns/revisions/step_patch_merge.py. -->

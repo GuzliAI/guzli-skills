@@ -173,9 +173,9 @@ Read `get_campaign_revision` and use its draft `step_id` and current `lock_versi
 update_campaign_draft_step {"campaign_id":"<campaign uuid>","revision_id":"<draft uuid>","step_id":"<step uuid>","expected_lock_version":1,"patch":{"call_instructions":"Ask whether the requested follow-up resolved their question."}}
 ```
 
-Replace the illustrative `1` with the version read. Voice patch fields are `call_instructions`, `initial_message`, `post_call_extraction`, `permission_requirement`. The tool never publishes; use its new lock version for the later publish. Stale input returns `campaign_revision_version_conflict`, `expected_lock_version`, `current_lock_version`, and `required_action: "reread_revision"`. Reread and reconcile; also reread after an uncertain write. Use `revise_campaign` for a complete-draft replacement that publishes, including changes beyond these patch fields.
+Replace the illustrative `1` with the version read. For voice content, use `call_instructions`, `initial_message`, `post_call_extraction`, and the step’s `permission_requirement`. The shared patch schema also exposes step-level `unsubscribe_requirement`; voice creation workflows do not. The tool never publishes; use its new lock version for the later publish. Stale input returns `campaign_revision_version_conflict`, `expected_lock_version`, `current_lock_version`, and `required_action: "reread_revision"`. Reread and reconcile; also reread after an uncertain write. Use `revise_campaign` for a complete-draft replacement that publishes, including changes beyond these patch fields.
 
-<!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json, update_campaign_draft_step/CampaignStepFieldPatch; contracts/mcp-registry/generated/package-workflows.json; campaigns/revisions/step_patch_refusals.py; campaigns/revisions/step_patch_manager.py. -->
+<!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json, update_campaign_draft_step/CampaignStepFieldPatch; contracts/mcp-registry/generated/package-workflows.json; campaigns/revisions/step_patch_refusals.py; campaigns/revisions/step_patch_manager.py; campaigns/revisions/step_patch.py; campaigns/revisions/step_patch_merge.py. -->
 
 ## What happens on the call
 
