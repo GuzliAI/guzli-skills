@@ -78,4 +78,4 @@ Tool names below are **remote** Guzli MCP names. Your agent host may show a name
 
 ## Registry-only availability in this snapshot
 
-Absent from the served copilot fixture: `apply_contact_tag`, `buy_managed_phone_number`, `call_instructions`, `get_campaign_revision_readiness`, `get_operation_status`, `list_campaign_revision_attempts`, `list_campaign_revisions`, `list_contact_tags`, `list_contacts`, `list_telephony_phone_numbers`, `pause_campaign`, `release_managed_phone_number`, `remove_contact_tag`, `resume_campaign`, `search_managed_phone_numbers`. Use only if tools/list exposes them; do not infer availability from this map.
+Absent from the served copilot fixture: `apply_contact_tag`, `buy_managed_phone_number`, `get_campaign_revision_readiness`, `get_operation_status`, `list_campaign_revision_attempts`, `list_campaign_revisions`, `list_contact_tags`, `list_contacts`, `list_telephony_phone_numbers`, `pause_campaign`, `release_managed_phone_number`, `remove_contact_tag`, `resume_campaign`, `search_managed_phone_numbers`. Use only if tools/list exposes them; do not infer availability from this map.

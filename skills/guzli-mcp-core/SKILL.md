@@ -151,7 +151,7 @@ Historical columns preserved from the repository’s 1.5.0 runbook; they are not
 ## Hard rules
 
 1. No fabricated contact data.
-2. No silent sending or dialing: confirm with the user before the first live send or dial in a thread.
+2. No silent sending or dialing: obtain user authorization before the first live send or dial in a thread; an explicit instruction to send or call is authorization.
 3. Readiness before every publish; a permission record for each recipient when the step requires it.
 4. On a schema error, report the tool and the field; do not guess.
 5. Channel details live in the sibling skills.

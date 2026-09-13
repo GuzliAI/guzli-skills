@@ -118,6 +118,8 @@ Response: `status: "queued"`, `campaign_id`, `campaign_revision_id`, `accepted_e
 
 ## Path B — step by step (tested sequence)
 
+Field-only braces below are argument shorthand, not copy-ready JSON. Copilot inputs are flat. `get_campaign_revision_readiness` is a tenant registry operation absent from the served copilot fixture: use it only when exposed, or rely on the publish workflow’s built-in readiness check and fix its returned reasons.
+
 Use this when you want to review or edit the draft before it publishes. `create_voice_campaign` accepts `call_instructions`, `initial_message` and `post_call_extraction` directly; the edit step below is only needed when you left them out or want to change them.
 
 1. **Create the draft**
@@ -205,7 +207,7 @@ For permission-required steps, every recipient has active `voice_twilio` permiss
 
 ## Anti-patterns
 
-Publishing without `number_pool_id`; omitting the daily cap; a second publish after `revise_campaign`; pasting `extraction_schema_version_id` or foreign `step_id`s into a draft; dialing before the permission check; recording a permission the user did not confirm; enrolling contacts on a segment campaign; inventing pool, profile or contact ids; using email tools for calls; retrying a dial that is held by the 24-hour cap.
+Publishing without `number_pool_id`; omitting the daily cap; a second publish after `revise_campaign`; pasting `extraction_schema_version_id` or foreign `step_id`s into a draft; running a permission-required campaign before its permission check; recording a permission the user did not confirm; enrolling contacts on a segment campaign; inventing pool, profile or contact ids; using email tools for calls; retrying a dial that is held by the 24-hour cap.
 
 <!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->
 

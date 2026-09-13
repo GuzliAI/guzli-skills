@@ -94,8 +94,10 @@ Email campaign permission is optional by default. A step with `permission_requir
 
 ## Path B — step by step (tested sequence)
 
+Field-only braces below are argument shorthand, not copy-ready JSON. Copilot inputs are flat. `get_campaign_revision_readiness` is a tenant registry operation absent from the served copilot fixture: use it only when exposed, or rely on the publish workflow’s built-in readiness check and fix its returned reasons.
+
 1. `create_email_campaign {"name","agent_id","audience_policy":{"kind":"explicit"},"subject","body_text","tenant_postal_address","purpose","admission_policy","cap_policy":{"maximum_daily_channel_units":100,"maximum_enrollments":100}}` → `campaign_id`, `revision_id`, `lock_version`. Optional `link` (appended to the body as a typed link), `description`, `quiet_hours_policy`, `schedule_policy`.
-2. `get_campaign_revision_readiness {"path":{"campaign_id","revision_id"}}` → fix every error reason.
+2. `get_campaign_revision_readiness {"path":{"campaign_id":"<campaign uuid>","revision_id":"<revision uuid>"},"query":{},"headers":{}}` → fix every error reason.
 3. `publish_email_campaign {"campaign_id","revision_id","expected_lock_version"}`.
 4. Explicit audience: `enroll_campaign_contacts {"campaign_id","contact_ids":[…],"requested_at"}`. Segment audience: skip this; segment automation enrolls.
 5. `run_email_campaign {"campaign_id","revision_id","enrollment_ids":[…]}` or `{"campaign_id","revision_id","all_active":true}` (exactly one of the two) → `status: "queued"`.
@@ -164,7 +166,7 @@ For permission-required steps, every recipient has active `email` permission for
 
 ## Anti-patterns
 
-Running a campaign before checking permissions; recording a permission the user did not confirm; skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`; email `artifact_ref` and `artifact_digest`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.
+Running a permission-required campaign before checking permissions; recording a permission the user did not confirm; skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`; email `artifact_ref` and `artifact_digest`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.
 
 <!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->
 
