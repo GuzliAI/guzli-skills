@@ -13,11 +13,11 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.6.0"
+  version: "1.7.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
-  verified_against: "Guzli engine release 1.0.8 (live-tested end to end)"
+  verified_against: "Guzli engine 1.0.16 (704e0b48e)"
   hermes:
     tags: [Guzli, MCP, Voice, Campaigns]
     related_skills: [guzli-mcp-core, guzli-mcp-email-outreach]
@@ -208,3 +208,7 @@ For permission-required steps, every recipient has active `voice_twilio` permiss
 Publishing without `number_pool_id`; omitting the daily cap; a second publish after `revise_campaign`; pasting `extraction_schema_version_id` or foreign `step_id`s into a draft; dialing before the permission check; recording a permission the user did not confirm; enrolling contacts on a segment campaign; inventing pool, profile or contact ids; using email tools for calls; retrying a dial that is held by the 24-hour cap.
 
 <!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->
+
+## Changelog
+
+- **1.7.0 (2026-09-13)** — Adds operator-directed call_contact_now, caller selection, call reads and typed refusals; distinguishes campaign controls and purpose/permission knobs; documents nonpublishing draft-step patches.

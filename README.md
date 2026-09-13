@@ -50,6 +50,8 @@ How you add that connector differs by product (Claude connectors, Codex/ChatGPT 
 
 ## Changelog
 
+- **1.7.0 (2026-09-13)** — verified against **Guzli engine 1.0.16 (704e0b48e)**. Corrects existing schema and consent drift; adds copilot/tenant scope guidance, held-only polling, self-serve attributes and campaign merge snapshots, HTML email, operator-directed one-off calls, draft-step patches and creation policy knobs. Each skill includes source citations and its own changelog; the core compatibility table retains historical 1.0.7/1.0.8 behavior and marks 1.0.16 current.
+
 - **1.5.0 (2026-09-10)** — verified against the Guzli engine MCP registry. Adds the two tool layers (workflows vs operations) and id discovery (`list_telephony_number_pools`, `list_voice_profiles`, `list_telephony_phone_numbers`, `get_campaign_revision_readiness`); voice runbook rewritten around the caller-ID **number pool** (required, no default), the daily cap, readiness codes and the one-call dial workflows; release-compatibility table for 1.0.7 vs 1.0.8 (`run_email_campaign`, voice publish, effect-key labels, pinned-segment sweep); `revise_campaign` round-trip rule.
 - **1.4.0** — MCP campaign skills rewritten as clean runbooks.
 

@@ -13,11 +13,11 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.6.0"
+  version: "1.7.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
-  verified_against: "Guzli engine release 1.0.8 (live-tested end to end)"
+  verified_against: "Guzli engine 1.0.16 (704e0b48e)"
   hermes:
     tags: [Guzli, MCP, Email, Campaigns, Outreach]
     related_skills: [guzli-mcp-core, guzli-mcp-voice-campaigns]
@@ -167,3 +167,7 @@ For permission-required steps, every recipient has active `email` permission for
 Running a campaign before checking permissions; recording a permission the user did not confirm; skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`; email `artifact_ref` and `artifact_digest`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.
 
 <!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->
+
+## Changelog
+
+- **1.7.0 (2026-09-13)** — Corrects send_email inputs and consent defaults; documents independent HTML/text, unsubscribe validity, per-contact merge snapshots, creation knobs and nonpublishing draft-step patches.

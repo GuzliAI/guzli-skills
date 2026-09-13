@@ -15,11 +15,11 @@ compatibility: >-
   Muse, Hermes Agent, and other compatible agents.
 metadata:
   author: Guzli
-  version: "1.6.0"
+  version: "1.7.0"
   website: https://guzli.com
   mcp_url: https://mcp.guzli.com/mcp
   standard: agentskills.io
-  verified_against: "Guzli engine release 1.0.8 (live-tested end to end)"
+  verified_against: "Guzli engine 1.0.16 (704e0b48e)"
   hermes:
     tags: [Guzli, MCP, Contacts, CRM]
     related_skills: [guzli-mcp-email-outreach, guzli-mcp-voice-campaigns]
@@ -134,6 +134,20 @@ Read the draft with `get_campaign_revision`, edit `definition`, send it back wit
 
 The engine rotates refresh tokens once and rejects reuse. Refresh single-flight per session, then reuse the rotated tokens for parallel calls.
 
+## Release compatibility
+
+| Behaviour | 1.0.7 (historical) | 1.0.8 (historical) | 1.0.16 (current) |
+|---|---|---|---|
+| `run_email_campaign` | Rejects every valid request (`invalid_workflow_request`) | Fixed | Supported; exactly one of `all_active` / `enrollment_ids` |
+| Voice publish | Blocked by `send_capability_not_registered` | Fixed | Supported; readiness still applies |
+| Voice tools accept `cap_policy`, quiet hours, schedule, admission label, `number_pool_id` | No | Yes; `create_voice_campaign` also requires `agent_id` and `audience_policy` | Supported; number pool and daily cap needed for publish |
+| Second segment campaign with the same `admission_policy.effect_key` | Publish fails (identity collision) | Fixed; the key is a label | Key remains a namespace label |
+| Pinned segment publish | Can miss a member re-evaluated after the pin | Fixed | Historical fix retained |
+
+Historical columns preserved from the repository’s 1.5.0 runbook; they are not live test results from this docs update. Use the current exposed schema.
+
+<!-- Sources: guzli-skills commit 29ecc31, skills/guzli-mcp-core/SKILL.md (historical columns); engine 704e0b48e contracts/mcp-registry/generated/package-workflows.json and tests/fixtures/copilot_schema_budget/current_served_catalog.json (current workflow inputs, publish and effect-key label). -->
+
 ## Hard rules
 
 1. No fabricated contact data.
@@ -147,3 +161,7 @@ The engine rotates refresh tokens once and rejects reuse. Refresh single-flight 
 A harmless read succeeds (`list_lifecycle_stages`, `search_contacts`, or `list_campaigns`) and the returned ids are reusable in the channel skills.
 
 <!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->
+
+## Changelog
+
+- **1.7.0 (2026-09-13)** — Audits served flat inputs and permission defaults; distinguishes copilot/tenant authorization, held-only status polling and self-serve attributes; restores historical compatibility with 1.0.16 current.
