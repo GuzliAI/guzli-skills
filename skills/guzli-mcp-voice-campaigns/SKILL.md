@@ -29,7 +29,7 @@ Install and follow **`guzli-mcp-core`** first. Email is skill **`guzli-mcp-email
 
 Every voice campaign is a campaign like email: contacts or a segment as the audience, a revision with one voice step, caps, readiness, publish, enroll, run. The agent talks as itself, using the voice profile of the agent. Every call carries your call instructions, and optionally a list of answers to collect.
 
-## What you need before any call
+## What you need before a campaign call
 
 | Fact | How to get it |
 |---|---|
@@ -41,16 +41,15 @@ Every voice campaign is a campaign like email: contacts or a segment as the audi
 | `admission_policy` | Two labels you choose, e.g. `{"subject_key":"organization","effect_key":"voice.dial:<campaign-name>"}` |
 | User approval | Ask before the first live dial in a thread |
 
-## Consent before any call (required)
+## Consent before a permission-required campaign call
 
-Every campaign call is checked against a recorded permission for the contact, channel `voice_twilio` and purpose `marketing` (the purpose every voice campaign tool sets). Without one the attempt fails with `permission_missing` and no call is placed.
+Voice campaign steps require recorded permission by default for channel `voice_twilio` and their `purpose` (`marketing` by default; `transactional` is also supported). Explicit `permission_requirement: "optional"` disables that campaign permission-row requirement. When permission is required, a missing record fails with `permission_missing` and no call is placed.
 
-1. Check: `list_contact_permission_heads {"path": {"contact_id": "<contact uuid>"}}` → you need an item with `channel_key: "voice_twilio"`, `purpose: "marketing"`, `state: "active"`.
-2. If missing, confirm the basis with the user and record it. Tested body (all fields required; `notice_text_digest` is the SHA-256 hex of the consent statement you are recording; the `*_ref`/`*_id` strings are your audit labels):
+1. Check: `list_contact_permission_heads {"contact_id": "<contact uuid>"}` → you need an item with `channel_key: "voice_twilio"`, `purpose` matching the campaign, `state: "active"`.
+2. If missing, confirm the basis with the user and record it. Flat copilot arguments (`expires_at` is optional; `notice_text_digest` is the SHA-256 hex of the consent statement you are recording; the `*_ref`/`*_id` strings are your audit labels):
    ```json
    capture_operator_permission {
-     "path": {"contact_id": "<contact uuid>"},
-     "body": {
+     "contact_id": "<contact uuid>",
        "identifier_type": "phone", "identifier_value": "+12025550123",
        "channel_key": "voice_twilio", "purpose": "marketing",
        "basis_key": "existing_relationship",
@@ -60,7 +59,6 @@ Every campaign call is checked against a recorded permission for the contact, ch
        "tenant_compliance_profile_version": 1,
        "evidence_ref": "chat 2026-09-11 user message", "attribution_ref": "operator:<user email>",
        "causation_id": "consent-<contact uuid>", "correlation_id": "<campaign name>"
-     }
    }
    ```
    `identifier_value` is the E.164 number the campaign will dial. Bases for marketing: `explicit_opt_in`, `existing_relationship` (`cold_b2b` only if the organisation allows it; the usual allowed set is `explicit_opt_in`, `existing_relationship`, `recipient_requested`, `contract_or_service`). For `call_phone_number` the contact is created from the number, so create or look up the contact first (`search_contacts` / `create_contact`) and record the permission on it before dialing.
@@ -110,7 +108,7 @@ Use this when you want to review or edit the draft before it publishes. `create_
    ```
    Keep `campaign_id`, `revision_id` (this is the draft) and `lock_version`.
 
-2. **Read the draft**: `get_campaign_revision {"path": {"campaign_id", "revision_id"}}` → `definition`.
+2. **Read the draft**: `get_campaign_revision {"campaign_id", "revision_id"}` → `definition`.
 
 3. **Edit `definition.steps[0].channel_config`** (it has `"channel": "voice"`):
    - `call_instructions`: plain prose. Tested wording: *"Ask the person, one question at a time, for their full name, the best phone number to reach them on, and their favourite colour. Confirm each answer briefly. Once you have all three and have recorded them, ask whether there is anything else you can help with. If not, thank them, say a proper goodbye, and end the call."*
@@ -137,20 +135,19 @@ Use this when you want to review or edit the draft before it publishes. `create_
 
 5. **Enroll**: `enroll_campaign_contacts {"campaign_id", "contact_ids": ["<contact uuid>"], "requested_at": "<ISO time>"}` → `disposition: "enrolled"`.
 
-6. **Run**: `run_voice_campaign {"campaign_id", "revision_id"}` → `status: "queued"`, `accepted_enrollment_ids`. The dial happens within about a minute.
+6. **Run**: `run_voice_campaign {"campaign_id", "revision_id"}` → `status: "queued"`, `accepted_enrollment_ids`. Queued is not proof of a completed call; inspect the attempt.
 
-7. **Watch**: `list_campaign_call_attempts {"path": {"campaign_id"}}` → `in_progress` → `completed` with `duration_seconds`.
+7. **Watch**: `list_campaign_call_attempts {"campaign_id"}` → `in_progress` → `completed` with `duration_seconds`.
 
 ## What happens on the call
 
 - No opening line is spoken unless the campaign selects one. The agent starts from your instructions.
 - The agent asks, confirms, and records the answers with its capture tool as it goes (live collection, on by default).
 - The agent ends the call itself: it says goodbye in its own words and calls the end tool. The goodbye is played in full before the hang-up.
-- Tested result: a 2-minute call, three answers captured exactly as spoken, "anything else?" asked, goodbye spoken, call ended by the agent.
 
 ## Reading the answers
 
-- `list_campaign_extraction_results {"path": {"campaign_id"}}` and `get_campaign_extraction_result` → `status`, `extraction_results` (your field keys → values), `schema_name`, `voice_session_id`, `campaign_call_attempt_id`.
+- `list_campaign_extraction_results {"campaign_id"}` and `get_campaign_extraction_result` → `status`, `extraction_results` (your field keys → values), `schema_name`, `voice_session_id`, `campaign_call_attempt_id`.
 - Webhook: subscribe an endpoint to the `voice_session_status` event. After the call completes you receive `status`, `campaign_id`, `provider_call_id`, `duration_seconds`, `recording_url`, `prospect`, and `post_call_extraction` with `structured_data` (same values), `status`, `validation_errors`, `source`.
 
 ## Call summary (automatic)
@@ -159,17 +156,19 @@ Every call also gets a written summary without any setup: after the call the eng
 
 ## Rules that save you a round trip
 
-- One call per recipient per 24 hours. A second attempt is held with reason `pacing.recipient_rolling_cap` and a retry time. This is a product rule, not an error.
+- Campaign pacing: one call per recipient per 24 hours. A second attempt is held with reason `pacing.recipient_rolling_cap` and a retry time. This is a product rule, not an error.
 - `revise_campaign` publishes. Calling `publish_voice_campaign` afterwards is a mistake.
 - Explicit audience → you enroll. Segment audience → segment automation enrolls; `enroll_campaign_contacts` is refused with `campaign_enrollment_explicit_audience_required`.
 - Readiness codes: `number_pool_missing` (add the pool), `campaign_daily_missing` (set the daily cap), `sending_identity_not_ready` as an error (pool inactive or no active member: pick another pool), `send_platform_unavailable` / `send_platform_integration_mismatch` / `send_platform_ambiguous` (the agent's voice integration needs fixing in the dashboard).
-- Every recipient needs an active `voice_twilio` / `marketing` permission before the run (section above).
+- Permission-required steps need active `voice_twilio` permission matching the campaign purpose before the run (section above).
 - Few standing campaigns, many enrollments. Never one campaign per phone number.
 
 ## Verify
 
-Every recipient has an active `voice_twilio` marketing permission; readiness had no error reasons; the run returned `queued` with your enrollment id; the call attempt reached `completed`; the extraction result holds the answers; the user has campaign id, revision id and the outcome.
+For permission-required steps, every recipient has active `voice_twilio` permission matching the campaign purpose; readiness had no error reasons; the run returned `queued` with your enrollment id; the call attempt reached `completed`; the extraction result holds the answers; the user has campaign id, revision id and the outcome.
 
 ## Anti-patterns
 
 Publishing without `number_pool_id`; omitting the daily cap; a second publish after `revise_campaign`; pasting `extraction_schema_version_id` or foreign `step_id`s into a draft; dialing before the permission check; recording a permission the user did not confirm; enrolling contacts on a segment campaign; inventing pool, profile or contact ids; using email tools for calls; retrying a dial that is held by the 24-hour cap.
+
+<!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->

@@ -66,11 +66,11 @@ Use a workflow to act, an operation to find an id or check state.
 
 `create_*_campaign` → (optional `get_campaign_revision` → edit → `revise_campaign`, which publishes) → or `get_campaign_revision_readiness` → `publish_*_campaign` → `enroll_campaign_contacts` (explicit audiences only) → `run_*_campaign` → check attempts / results. One-call shortcuts (`email_contacts`, `email_segment`, `call_phone_number`, `call_contacts`, `call_segment`) do the whole chain for a fresh cohort. The voice ones take the call script (`call_instructions`, required) and answer extraction directly.
 
-## Consent before any campaign send (required)
+## Consent for permission-required campaign sends
 
-Every campaign send, email or voice, marketing or transactional, is checked against a recorded permission for that contact, that channel and that purpose. No record means the attempt fails with `permission_missing`. Nothing sends until a record exists. Before enrolling anyone:
+When a campaign step resolves `permission_requirement` to `"required"`, it checks recorded permission for the contact, channel and purpose; no record fails with `permission_missing`. Email inherits `"optional"`; voice inherits `"required"`. For required steps, before enrolling anyone:
 
-1. `list_contact_permission_heads {"path": {"contact_id": "<contact uuid>"}}` → `items[]` with `channel_key`, `purpose`, `basis_key`, `state`. You need an item with `state: "active"`, the channel you will use (`email`, or `voice_twilio` for calls) and the purpose of your campaign.
+1. `list_contact_permission_heads {"contact_id": "<contact uuid>"}` → `items[]` with `channel_key`, `purpose`, `basis_key`, `state`. You need an item with `state: "active"`, the channel you will use (`email`, or `voice_twilio` for calls) and the purpose of your campaign.
 2. If there is none, ask the user on what basis this person may be contacted, then record it with `capture_operator_permission` (exact body in the email and voice skills). Bases: `explicit_opt_in`, `existing_relationship` (either purpose); `recipient_requested`, `contract_or_service`, `legal_obligation` (transactional only); `cold_b2b` (marketing only); `legitimate_interest`. The organisation's allowed bases are set in the dashboard; the usual set is `explicit_opt_in`, `existing_relationship`, `recipient_requested`, `contract_or_service`. A basis outside that set fails the send with `permission_basis_not_allowed`.
 3. Never record a permission the user did not confirm. The record names who vouched for it.
 
@@ -84,13 +84,13 @@ Every campaign send, email or voice, marketing or transactional, is checked agai
 | `campaign_enrollment_explicit_audience_required` | `enroll_campaign_contacts` on a segment campaign | Intended; segment automation enrolls |
 | `pacing.recipient_rolling_cap` | A recipient was already called/emailed in the last 24 h | Product rule; the attempt is held with a retry time |
 | `invalid_workflow_request` | Arguments rejected against the schema; `schema_path` names the field | Fix that field; do not retry blindly |
-| `invalid_contact_patch` with `configured_attribute_keys: []` | Unknown custom attribute keys | Omit `custom_attributes` |
+| `invalid_contact_patch` with `invalid_attribute_keys` | Invalid custom attribute names or nested values | Correct the listed keys or use scalar values |
 | `held_for_approval` | The agent's policy holds outbound actions for a human | Tell the user; a reviewer approves in the dashboard |
-| `permission_missing` / `permission_inactive` / `permission_basis_not_allowed` | No active permission for this contact, channel and purpose, or its basis is outside the organisation's allowed set | Record one with `capture_operator_permission` (see "Consent before any campaign send"); do not retry the same run |
+| `permission_missing` / `permission_inactive` / `permission_basis_not_allowed` | No active permission for this contact, channel and purpose, or its basis is outside the organisation's allowed set | Record one with `capture_operator_permission` (see the consent section); do not retry the same run |
 
 ## Contacts
 
-`search_contacts` / `lookup_contact` before create. `create_contact` with a real `source_reason_code` (lowercase snake_case). Omit `custom_attributes` unless the org has configured keys. Never invent email, phone, or name. Phones are E.164.
+`search_contacts` / `lookup_contact` before create. `create_contact` with a real `source_reason_code` (lowercase snake_case). Use scalar `custom_attributes`; unknown valid keys are defined on first write. Never invent email, phone, or name. Phones are E.164.
 
 ## Lifecycle
 
@@ -98,7 +98,7 @@ Every campaign send, email or voice, marketing or transactional, is checked agai
 
 ## Editing a draft: `revise_campaign`
 
-Read the draft with `get_campaign_revision`, edit `definition`, send it back with `existing_draft_revision_id` set to that draft. Send only fields the schema declares, keep the draft's own `step_id`s, and never send server-owned fields (`extraction_schema_version_id`). `revise_campaign` publishes the revision; do not call `publish_*_campaign` afterwards.
+Read the draft with `get_campaign_revision`, edit `definition`, send it back with `existing_draft_revision_id` set to that draft. Send only fields the schema declares, keep the draft's own `step_id`s, and never send server-owned fields (`extraction_schema_version_id`; email `artifact_ref` and `artifact_digest`). `revise_campaign` publishes the revision; do not call `publish_*_campaign` afterwards.
 
 ## OAuth and parallel calls
 
@@ -108,10 +108,12 @@ The engine rotates refresh tokens once and rejects reuse. Refresh single-flight 
 
 1. No fabricated contact data.
 2. No silent sending or dialing: confirm with the user before the first live send or dial in a thread.
-3. Readiness before every publish; a permission record for every recipient before every run.
+3. Readiness before every publish; a permission record for each recipient when the step requires it.
 4. On a schema error, report the tool and the field; do not guess.
 5. Channel details live in the sibling skills.
 
 ## Verify
 
 A harmless read succeeds (`list_lifecycle_stages`, `search_contacts`, or `list_campaigns`) and the returned ids are reusable in the channel skills.
+
+<!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->

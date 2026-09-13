@@ -31,33 +31,32 @@ Two ways to send email. A **one-off** message goes through `send_email`. **List 
 ## One-off email: `send_email`
 
 ```json
-send_email {"to": "person@example.com", "subject": "Your appointment", "body": "Plain text body.", "idempotency_key": "<uuid you generate>"}
+send_email {"to": "person@example.com", "subject": "Your appointment", "body_text": "Plain text body."}
 ```
 
-The sender is the agent's configured address. The result is a structured outcome, not the message bytes. If the agent's policy holds outbound email for approval, the result says `held_for_approval`; a human approves it in the dashboard and it is sent as written. Reuse the same `idempotency_key` when you retry; a new key is a new email.
+The sender is the agent's configured address. The result is a structured outcome, not the message bytes. If the agent's policy holds outbound email for approval, the result says `held_for_approval`; a human approves it in the dashboard and it is sent as written. The served copilot schema does not accept `idempotency_key`; the package workflow schema does require it. Read the exposed schema: supply a stable key only where declared, and do not blindly repeat a send with an uncertain outcome.
 
 ## What you need before a campaign
 
 | Fact | How to get it |
 |---|---|
 | `agent_id` | `list_campaigns` (any row) or the user |
-| `tenant_postal_address` | The organisation's mailing address (required by law in the footer) |
+| `tenant_postal_address` | The organisation's mailing address (required campaign input for footer mechanics) |
 | `purpose` | `marketing` or `transactional` |
 | `admission_policy` | Two labels you choose, e.g. `{"subject_key":"organization","effect_key":"email.send:<campaign-name>"}` |
 | `cap_policy.maximum_daily_channel_units` | You choose it. Required to publish. Usually also `maximum_enrollments` |
 | Contact ids with real emails | `search_contacts` / `create_contact` |
 | A verified sender | Readiness tells you if the agent's sending identity is not ready; fix it in the dashboard |
 
-## Consent before any email campaign (required)
+## Consent for permission-required email campaigns
 
-Every campaign email is checked against a recorded permission for the contact, channel `email` and the campaign's `purpose`. Without one the attempt fails with `permission_missing` and nothing is sent. `send_email` (one-off) is not a campaign and is not checked this way.
+Email campaign permission is optional by default. A step with `permission_requirement: "required"` checks recorded permission for channel `email` and the campaign’s `purpose`; without it the attempt fails with `permission_missing`. Follow the check below for required steps. `send_email` (one-off) is not a campaign and is not checked this way.
 
-1. Check: `list_contact_permission_heads {"path": {"contact_id": "<contact uuid>"}}`. You need an item with `channel_key: "email"`, `purpose` equal to your campaign's purpose and `state: "active"`.
-2. If missing, confirm the basis with the user and record it. Tested body (every field is required; `captured_at` is now in ISO-8601; `notice_text_digest` is the SHA-256 hex of the consent statement you are recording, for example the user's sentence granting it; the `*_ref`/`*_id` strings are your own audit labels):
+1. Check: `list_contact_permission_heads {"contact_id": "<contact uuid>"}`. You need an item with `channel_key: "email"`, `purpose` equal to your campaign's purpose and `state: "active"`.
+2. If missing, confirm the basis with the user and record it. Flat copilot arguments (`expires_at` is optional; `captured_at` is now in ISO-8601; `notice_text_digest` is the SHA-256 hex of the consent statement you are recording, for example the user's sentence granting it; the `*_ref`/`*_id` strings are your own audit labels):
    ```json
    capture_operator_permission {
-     "path": {"contact_id": "<contact uuid>"},
-     "body": {
+     "contact_id": "<contact uuid>",
        "identifier_type": "email", "identifier_value": "<the contact's email address>",
        "channel_key": "email", "purpose": "transactional",
        "basis_key": "existing_relationship",
@@ -67,7 +66,6 @@ Every campaign email is checked against a recorded permission for the contact, c
        "tenant_compliance_profile_version": 1,
        "evidence_ref": "chat 2026-09-11 user message", "attribution_ref": "operator:<user email>",
        "causation_id": "consent-<contact uuid>", "correlation_id": "<campaign name>"
-     }
    }
    ```
    Response: `permission_record_id`, `state: "active"`, `channel_key`, `purpose`, `basis_key`. Use `purpose: "marketing"` with `explicit_opt_in` or `existing_relationship` for marketing mail; `recipient_requested`, `contract_or_service`, `legal_obligation` are transactional only; `cold_b2b` is marketing only. The organisation's allowed bases (dashboard) are usually `explicit_opt_in`, `existing_relationship`, `recipient_requested`, `contract_or_service`; another basis fails the send with `permission_basis_not_allowed`.
@@ -89,9 +87,9 @@ Every campaign email is checked against a recorded permission for the contact, c
 
 ### Changing a draft before publish: `revise_campaign`
 
-`get_campaign_revision` → edit `definition` → `revise_campaign {"campaign_id","source_revision_id","existing_draft_revision_id": <the draft>, "draft": <definition>}`. Send only fields the schema declares; keep the draft's own `step_id`s. **`revise_campaign` publishes the revision.** Do not call `publish_email_campaign` afterwards.
+`get_campaign_revision` → edit `definition` → `revise_campaign {"campaign_id","source_revision_id","existing_draft_revision_id": <the draft>, "draft": <definition>}`. Send only fields the schema declares; keep the draft’s own `step_id`s and remove email `artifact_ref` / `artifact_digest` plus `extraction_schema_version_id`. **`revise_campaign` publishes the revision.** Do not call `publish_email_campaign` afterwards.
 
-Common edit: make the unsubscribe footer optional for a campaign — set the email step's `unsubscribe_requirement` to `"optional"` in the draft (`"required"` is the default). Only do this for mail that is not marketing.
+Common edit: make the unsubscribe footer optional for a campaign — set the email step's `unsubscribe_requirement` to `"optional"` at the step level in the draft (`"optional"` is the email manifest default). Choose this explicitly to match the user’s campaign requirements.
 
 ## Segments
 
@@ -110,18 +108,20 @@ Every campaign message carries a message id and a per-thread reply address. A re
 
 ## Rules that save you a round trip
 
-- `permission_missing` on a send attempt: the recipient has no active permission for `email` with the campaign's `purpose`. Transactional needs one as much as marketing does. Record it (section above) and run again; do not retry the same run.
+- `permission_missing` on a send attempt: the recipient has no active permission for `email` with the campaign's `purpose`. This applies to either purpose when permission is required. Record it (section above) and run again; do not retry the same run.
 - Readiness before publish; `campaign_daily_missing` means the daily cap is unset.
 - Explicit audience → you enroll. Segment audience → automation enrolls; `enroll_campaign_contacts` is refused with `campaign_enrollment_explicit_audience_required`.
 - `run_email_campaign` takes exactly one of `all_active` or `enrollment_ids`.
 - `revise_campaign` publishes; no second publish.
-- Contacts: omit `custom_attributes` unless the org has configured keys; never invent addresses.
+- Contacts: use scalar `custom_attributes` with valid keys; never invent addresses.
 - Few standing segments and campaigns; never one campaign per contact or per file.
 
 ## Verify
 
-Every recipient has an active `email` permission for the campaign's purpose; readiness had no error reasons; the campaign is published; the enrollment summary matches the intended audience; the run returned `queued`; the user has campaign id, revision id and the outcome.
+For permission-required steps, every recipient has active `email` permission for the campaign’s purpose; readiness had no error reasons; the campaign is published; the enrollment summary matches the intended audience; the run returned `queued`; the user has campaign id, revision id and the outcome.
 
 ## Anti-patterns
 
-Running a campaign before checking permissions; recording a permission the user did not confirm; skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.
+Running a campaign before checking permissions; recording a permission the user did not confirm; skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`; email `artifact_ref` and `artifact_digest`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.
+
+<!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->

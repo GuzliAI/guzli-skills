@@ -6,7 +6,7 @@ Tool names below are **remote** Guzli MCP names. Your host may prefix them; matc
 
 | Remote name | Role |
 |---|---|
-| `send_email` | One email from the agent's address: `to`, `subject`, `body`, `idempotency_key`. May return `held_for_approval` under the agent's approval policy |
+| `send_email` | One email from the agent's address: `to`, `subject`, `body_text`. May return `held_for_approval` under the agent's approval policy |
 
 ## One-call campaign workflows
 
@@ -28,12 +28,12 @@ Tool names below are **remote** Guzli MCP names. Your host may prefix them; matc
 | `list_campaign_enrollments` / `get_campaign_enrollment_summary` | Enrollment dispositions |
 | `get_campaign_activity` | What was sent / queued / held |
 
-## Permissions (operations; required before any run)
+## Permissions (operations; when the step requires permission)
 
 | Remote name | Role |
 |---|---|
-| `list_contact_permission_heads` | `{"path": {"contact_id"}}` → active permissions per channel and purpose |
-| `capture_operator_permission` | `{"path": {"contact_id"}, "body": {...}}` → records one; body in SKILL.md "Consent before any email campaign" |
+| `list_contact_permission_heads` | `{"contact_id"}` → active permissions per channel and purpose |
+| `capture_operator_permission` | `{"contact_id", ...permission fields}` → records one; body in SKILL.md consent section |
 
 ## Segments and contacts (operations)
 
@@ -41,4 +41,6 @@ Tool names below are **remote** Guzli MCP names. Your host may prefix them; matc
 
 ## Email step `channel_config` / step keys you will use
 
-`subject`, `body_text`, `link`, `unsubscribe_requirement` (`required` default, `optional`), `sending_identity` (`{"selection":"agent_default"}`), `permission_requirement`. Server-owned fields are never sent back.
+`subject`, `body_text`, `link`, `unsubscribe_requirement` (`required` or `optional`; email manifest default is `optional`), `sending_identity` (`{"selection":"agent_default"}`), `permission_requirement`. Server-owned fields are never sent back.
+
+<!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->

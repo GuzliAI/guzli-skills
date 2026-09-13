@@ -61,4 +61,6 @@ Tool names below are **remote** Guzli MCP names. Your agent host may show a name
 
 | Remote name | Layer | Role |
 |---|---|---|
-| `send_email` | workflow | Single plain-text email |
+| `send_email` | workflow | Single email with required text |
+
+<!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->

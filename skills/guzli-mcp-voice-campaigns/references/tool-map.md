@@ -25,12 +25,12 @@ Tool names below are **remote** Guzli MCP names. Your agent host may show a name
 | `list_campaign_extraction_results` / `get_campaign_extraction_result` | Captured answers per call (operation) |
 | `get_campaign_enrollment_summary` / `list_campaign_enrollments` | Enrollment dispositions |
 
-## Permissions (operations; required before any run)
+## Permissions (operations; when the step requires permission)
 
 | Remote name | Role |
 |---|---|
-| `list_contact_permission_heads` | `{"path": {"contact_id"}}` → active permissions per channel and purpose |
-| `capture_operator_permission` | `{"path": {"contact_id"}, "body": {...}}` → records one; body in SKILL.md "Consent before any call" |
+| `list_contact_permission_heads` | `{"contact_id"}` → active permissions per channel and purpose |
+| `capture_operator_permission` | `{"contact_id", ...permission fields}` → records one; body in SKILL.md consent section |
 
 ## Discovery (operations)
 
@@ -48,3 +48,5 @@ Tool names below are **remote** Guzli MCP names. Your agent host may show a name
 ## Webhook
 
 Event `voice_session_status` (subscribe an endpoint to it): `status`, `campaign_id`, `conversation_id`, `provider_call_id`, `duration_seconds`, `recording_url`, `prospect`, `post_call_extraction` {`structured_data`, `status`, `validation_errors`, `source`}.
+
+<!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->
