@@ -38,6 +38,8 @@ The sender is the agent's configured address. The result is a structured outcome
 
 ### HTML and independent text
 
+**Authoring HTML through a copilot chat:** if you are a copilot acting on a chat instruction, write the `body_html` fragment yourself inside the tool argument as real markup. HTML pasted into the chat message reaches the tool call HTML-escaped (`&lt;h2&gt;`) and is delivered as visible tags. Verified on production 1.0.16 on 2026-09-13 (campaigns f87bfb2a vs 3cb1eb8c).
+
 `send_email`, `create_email_campaign`, `email_contacts` and `email_segment` accept required `body_text` and optional independent `body_html`. `revise_campaign` accepts them in the email step’s `channel_config`. Always supply the plain-text part; HTML does not replace it. One optional `link` accepts HTTP or HTTPS. For example, the one-off input can add `"body_html":"<p>Your appointment is confirmed.</p>"` alongside the text.
 
 Sanitizer refusals are typed: `email_html_disallowed`, `email_macro_location_invalid`, `email_content_too_long`, or `email_content_validation_unavailable`. Inspect `reason_code`, `field`, `phase`, `rule`, `instance_path` and any `actual_characters` / `limit_characters`; correct the named content instead of retrying unchanged. When an unsubscribe token is emitted, it remains valid for 180 days from send.
