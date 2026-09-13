@@ -44,10 +44,18 @@ Tool cheat sheet: [references/tool-map.md](references/tool-map.md).
 
 | Layer | What it is | Examples |
 |---|---|---|
-| **Workflows** (about 25) | One call that does several engine steps | `send_email`, `create_email_campaign`, `email_segment`, `call_phone_number`, `create_voice_campaign`, `revise_campaign`, `run_voice_campaign`, `enroll_campaign_contacts` |
-| **Operations** (about 140) | Direct reads and writes, named `verb_object` | `list_campaigns`, `get_campaign_revision`, `get_campaign_revision_readiness`, `list_telephony_number_pools`, `list_voice_profiles`, `list_campaign_extraction_results` |
+| **Workflows** | One call that does several engine steps | `send_email`, `create_email_campaign`, `email_segment`, `call_phone_number`, `create_voice_campaign`, `revise_campaign`, `run_voice_campaign`, `enroll_campaign_contacts` |
+| **Operations** | Direct reads and writes, named `verb_object` | `list_campaigns`, `get_campaign_revision`, `get_campaign_revision_readiness`, `list_telephony_number_pools`, `list_voice_profiles`, `list_campaign_extraction_results` |
 
-Use a workflow to act, an operation to find an id or check state.
+Use a workflow to act, an operation to find an id or check state. These layers are distinct from the authorization surfaces below.
+
+### Copilot vs tenant surfaces
+
+Authorize all four scopes: `guzli:read`, `guzli:write`, `guzli:copilot:read`, `guzli:copilot:act`. Copilot authorization exposes about 80 tools (81 in the served fixture), including `create_contact`, `update_contact`, `call_contact_now`, `send_email` and campaign workflows. Only `guzli:read` / `guzli:write` exposes the tenant operations plane (about 144 operations); workflow-backed operations carry `_primitive` names and contact write tools are absent. If `tools/list` shows about 144 tools and no `update_contact`, re-authorize with the copilot scopes. Counts are diagnostic hints; names and schemas decide availability.
+
+Copilot tools use flat arguments (`get_campaign {"campaign_id":"<id>"}`), not tenant transport envelopes. Tools such as `get_campaign_revision_readiness`, `list_campaign_revisions` and `list_telephony_phone_numbers` are registry operations absent from the served copilot fixture. Use them only when exposed; read their schema for `path`, `query` and `headers`. Otherwise use the dashboard or the workflow’s built-in readiness check; do not invent a copilot tool. The tool map lists both surfaces.
+
+<!-- Sources at 704e0b48e: contracts/mcp-registry/classification-seed.json; contracts/mcp-registry/generated/primitive-identities.json; tests/fixtures/copilot_schema_budget/current_served_catalog.json; engine/model_first/hosted_mcp/bundle_composition.py (scope routing). -->
 
 ## Where ids come from
 
@@ -88,9 +96,31 @@ When a campaign step resolves `permission_requirement` to `"required"`, it check
 | `held_for_approval` | The agent's policy holds outbound actions for a human | Tell the user; a reviewer approves in the dashboard |
 | `permission_missing` / `permission_inactive` / `permission_basis_not_allowed` | No active permission for this contact, channel and purpose, or its basis is outside the organisation's allowed set | Record one with `capture_operator_permission` (see the consent section); do not retry the same run |
 
+## Held operations and status polling
+
+A completed `send_email` result with `operation_id: "api-operation:<digest>"` is final. Do not poll that id or send the email again merely to obtain status. Only `status: "held_for_approval"` supplies a `held_call_id` for approval polling; a held result with `side_effect_complete: false` is not done.
+
+Call `get_operation_status` with the returned **held-call value**. Its registry transport schema names the input `path.operation_id`, even though the value must be `held_call_id`:
+
+```json
+get_operation_status {"path":{"operation_id":"<held_call_id from held result>"},"query":{},"headers":{}}
+```
+
+Passing an `api-operation:` id returns `status: "denied"`, `reason_code: "held_call_id_required"`, `may_have_executed: false`, `retryable: false`, the supplied `operation_id`, `conversation_id: null`, `held_call_id: null`, and `required: {"id_field":"held_call_id","result_status":"held_for_approval"}`. There is no message text to parse. Report held status to the user and use the returned approval facts.
+
+<!-- Sources at 704e0b48e: contracts/mcp-registry/generated/engine-primitives.json, engine.get-operation-status input; contracts/mcp-registry/generated/package-workflows.json, held_result_grammar. The package send_email polling recipe is stale: v2/api/operation_status.py and tests/engine/model_first/public_operations/test_status_denial_sequence.py establish the exact held-only denial and completed invocation behavior. -->
+
 ## Contacts
 
 `search_contacts` / `lookup_contact` before create. `create_contact` with a real `source_reason_code` (lowercase snake_case). Use scalar `custom_attributes`; unknown valid keys are defined on first write. Never invent email, phone, or name. Phones are E.164.
+
+### Self-serve custom attributes
+
+`create_contact` takes `source_reason_code`; `update_contact` takes `contact_id` and `reason_code`. Both accept `custom_attributes` with scalar values. An unknown valid key defines an organization attribute on first non-null write: boolean → `boolean`, number → `number`, valid `YYYY-MM-DD` → `date`, other strings → `text`. The label comes from the key. `null` on an unknown key defines nothing; existing attributes keep their type. Keys must match `^[a-z][a-z0-9_]{0,63}$`. Bad names or nested values are refused with `invalid_contact_patch` and `invalid_attribute_keys` (a served schema can reject nested values before mutation). Correct the values; do not discard valid unknown keys.
+
+`search_contacts` returns `schema`; inspect it for existing types. `get_segment_field_catalog` lists defined attributes and supported operators before segment authoring. Omitted update fields stay unchanged; explicit null retracts an existing fact.
+
+<!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json, create_contact/update_contact/search_contacts/get_segment_field_catalog; contacts/attribute_definition.py; contacts/service.py; contacts/tool_mutations/contracts.py; tests/contacts/test_self_serve_attributes_postgres.py. -->
 
 ## Lifecycle
 

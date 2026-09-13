@@ -1,6 +1,6 @@
 # Host note
 
-Tool names below are **remote** Guzli MCP names. Your agent host may show a namespace or prefix; match on these remote names when invoking. Guzli serves **workflow** tools (one call, several steps) and **operation** tools (`verb_object`, direct engine reads/writes). Confirm live schemas on the connected server.
+Tool names below are **remote** Guzli MCP names. Your agent host may show a namespace or prefix; match on these remote names when invoking. Guzli serves **workflow** tools (one call, several steps) and **operation** tools (`verb_object`, direct engine reads/writes). Confirm live schemas on the connected server. This map covers both copilot and tenant surfaces. Copilot inputs are flat; registry-only operations require their exposed transport schema.
 
 ## Connector
 
@@ -12,7 +12,7 @@ Tool names below are **remote** Guzli MCP names. Your agent host may show a name
 | Remote name | Layer | Role |
 |---|---|---|
 | `create_contact` | operation | Create or resolve contact |
-| `update_contact` | operation | Patch profile / allowed custom attributes |
+| `update_contact` | operation | Patch profile / self-serve scalar custom attributes |
 | `search_contacts` / `list_contacts` | operation | Find contacts |
 | `lookup_contact` | operation | Resolve by id or identifier |
 | `list_contact_events` | operation | Evidence events |
@@ -46,6 +46,7 @@ Tool names below are **remote** Guzli MCP names. Your agent host may show a name
 | `pause_campaign` / `resume_campaign` | operation | Pause and resume |
 | `campaign_measurement` | operation | Metrics |
 | `revise_campaign` | workflow | Replace the draft (send a complete draft; drop server-owned fields such as `extraction_schema_version_id`) |
+| `update_campaign_draft_step` | workflow | Patch one draft step with `expected_lock_version`; never publishes |
 | `enroll_campaign_contacts` | workflow | Explicit-audience campaigns only |
 
 ## Telephony & voice discovery
@@ -64,3 +65,17 @@ Tool names below are **remote** Guzli MCP names. Your agent host may show a name
 | `send_email` | workflow | Single email with required text |
 
 <!-- Engine 704e0b48e audit: tests/fixtures/copilot_schema_budget/current_served_catalog.json (served names and flat inputs); contracts/mcp-registry/generated/package-workflows.json (workflow inputs and composition); contracts/mcp-registry/generated/engine-primitives.json (operation names and transport schemas). Permission defaults: tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py. Legacy codes absent from generated schemas were checked in pinned implementation/tests; full token inventory is in the release RESULT artifact. -->
+
+## One-off calls and held status
+
+| Remote name | Role |
+|---|---|
+| `call_contact_now` | One operator-directed recipient; required `call_instructions`, `idempotency_key` |
+| `get_call` / `list_calls` | One-off and campaign call outcomes |
+| `get_operation_status` | Poll only the `held_call_id` from `held_for_approval`; registry input is `path.operation_id` |
+
+<!-- Additions verified at 704e0b48e against tests/fixtures/copilot_schema_budget/current_served_catalog.json and contracts/mcp-registry/generated/package-workflows.json. Runtime details and their supplemental source citations are in the corresponding SKILL.md sections. -->
+
+## Registry-only availability in this snapshot
+
+Absent from the served copilot fixture: `apply_contact_tag`, `buy_managed_phone_number`, `call_instructions`, `get_campaign_revision_readiness`, `get_operation_status`, `list_campaign_revision_attempts`, `list_campaign_revisions`, `list_contact_tags`, `list_contacts`, `list_telephony_phone_numbers`, `pause_campaign`, `release_managed_phone_number`, `remove_contact_tag`, `resume_campaign`, `search_managed_phone_numbers`. Use only if tools/list exposes them; do not infer availability from this map.

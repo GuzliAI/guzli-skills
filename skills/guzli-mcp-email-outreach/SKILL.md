@@ -36,6 +36,16 @@ send_email {"to": "person@example.com", "subject": "Your appointment", "body_tex
 
 The sender is the agent's configured address. The result is a structured outcome, not the message bytes. If the agent's policy holds outbound email for approval, the result says `held_for_approval`; a human approves it in the dashboard and it is sent as written. The served copilot schema does not accept `idempotency_key`; the package workflow schema does require it. Read the exposed schema: supply a stable key only where declared, and do not blindly repeat a send with an uncertain outcome.
 
+### HTML and independent text
+
+`send_email`, `create_email_campaign`, `email_contacts` and `email_segment` accept required `body_text` and optional independent `body_html`. `revise_campaign` accepts them in the email step’s `channel_config`. Always supply the plain-text part; HTML does not replace it. One optional `link` accepts HTTP or HTTPS. For example, the one-off input can add `"body_html":"<p>Your appointment is confirmed.</p>"` alongside the text.
+
+Sanitizer refusals are typed: `email_html_disallowed`, `email_macro_location_invalid`, `email_content_too_long`, or `email_content_validation_unavailable`. Inspect `reason_code`, `field`, `phase`, `rule`, `instance_path` and any `actual_characters` / `limit_characters`; correct the named content instead of retrying unchanged. When an unsubscribe token is emitted, it remains valid for 180 days from send.
+
+A completed one-off `operation_id` is not pollable. Only approval-held results with `held_call_id` use `get_operation_status`; follow core’s held-operation section.
+
+<!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json; contracts/mcp-registry/generated/package-workflows.json (email workflows, revise_campaign); channels/email/content/contracts.py (typed sanitizer refusals); channels/email/campaign_unsubscribe.py and tests/channels/email/test_unsubscribe_validity.py (180 days from send). -->
+
 ## What you need before a campaign
 
 | Fact | How to get it |
@@ -71,6 +81,12 @@ Email campaign permission is optional by default. A step with `permission_requir
    Response: `permission_record_id`, `state: "active"`, `channel_key`, `purpose`, `basis_key`. Use `purpose: "marketing"` with `explicit_opt_in` or `existing_relationship` for marketing mail; `recipient_requested`, `contract_or_service`, `legal_obligation` are transactional only; `cold_b2b` is marketing only. The organisation's allowed bases (dashboard) are usually `explicit_opt_in`, `existing_relationship`, `recipient_requested`, `contract_or_service`; another basis fails the send with `permission_basis_not_allowed`.
 3. One record per contact, per channel, per purpose. `identifier_value` must be the address the campaign will send to.
 
+### Creation policy knobs
+
+`create_email_campaign`, `email_contacts` and `email_segment` accept optional `permission_requirement` and `unsubscribe_requirement`, each `"required"` or `"optional"`. Omission inherits the email manifest’s `"optional"` defaults; these are string choices, not booleans. Keep `purpose` explicit. To require recorded permission and the unsubscribe mechanism, pass `"permission_requirement":"required","unsubscribe_requirement":"required"` at creation and use the consent runbook above. On a complete revision draft these fields belong on the send step, outside `channel_config`.
+
+<!-- Sources at 704e0b48e: contracts/mcp-registry/generated/package-workflows.json (create_email_campaign/email_contacts/email_segment); tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py; tests/campaigns/phase4b/test_email_campaign_execution_contract.py. -->
+
 ## Path A — one call for a fresh cohort
 
 - `email_contacts` (explicit contact ids) or `email_segment` (a materialized segment): creates, publishes, enrolls and queues in one call. Required: `name`, `agent_id`, `subject`, `body_text`, `tenant_postal_address`, `purpose`, `admission_policy`, `request_id` (uuid), `requested_at` (ISO time), plus `contact_ids` or `segment_id` + `segment_version_id` + `maximum_age_seconds`. Add `cap_policy`, `link`, `description` as needed.
@@ -90,6 +106,32 @@ Email campaign permission is optional by default. A step with `permission_requir
 `get_campaign_revision` → edit `definition` → `revise_campaign {"campaign_id","source_revision_id","existing_draft_revision_id": <the draft>, "draft": <definition>}`. Send only fields the schema declares; keep the draft’s own `step_id`s and remove email `artifact_ref` / `artifact_digest` plus `extraction_schema_version_id`. **`revise_campaign` publishes the revision.** Do not call `publish_email_campaign` afterwards.
 
 Common edit: make the unsubscribe footer optional for a campaign — set the email step's `unsubscribe_requirement` to `"optional"` at the step level in the draft (`"optional"` is the email manifest default). Choose this explicitly to match the user’s campaign requirements.
+
+### Patch one draft step without publishing
+
+Read `get_campaign_revision` for the draft’s `step_id` and `lock_version`, then call:
+
+```json
+update_campaign_draft_step {"campaign_id":"<campaign uuid>","revision_id":"<draft uuid>","step_id":"<step uuid>","expected_lock_version":1,"patch":{"subject":"Updated subject","body_text":"Updated text."}}
+```
+
+Use the version just read, not the illustrative `1`. Email patch fields are `subject`, `body_text`, `body_html`, `link`, `tenant_postal_address`, `permission_requirement`, `unsubscribe_requirement`. This tool **never publishes**. A stale version returns `campaign_revision_version_conflict` with `expected_lock_version`, `current_lock_version` and `required_action: "reread_revision"`; reread and reconcile before submitting another patch. Retain the returned new lock version for publish. An uncertain write must be reread. `revise_campaign` still replaces a complete draft and publishes it.
+
+<!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json, update_campaign_draft_step/CampaignStepFieldPatch; contracts/mcp-registry/generated/package-workflows.json; campaigns/revisions/step_patch_refusals.py; campaigns/revisions/step_patch_manager.py. -->
+
+## Per-contact campaign merge fields
+
+Write real per-contact content with `update_contact` before enrollment. Unknown valid scalar keys self-define, using the type and key rules in core; nested values or bad names produce `invalid_contact_patch` / `invalid_attribute_keys`. `search_contacts.schema` and `get_segment_field_catalog` expose defined attributes.
+
+```json
+update_contact {"contact_id":"<contact uuid>","reason_code":"operator_outreach_copy","custom_attributes":{"outreach_subject":"Your requested follow-up","outreach_body":"Here is the information you requested."}}
+```
+
+Create and publish the campaign with `subject: "{{member_metadata.outreach_subject}}"` and `body_text: "{{member_metadata.outreach_body}}"`, then enroll the contacts and run it. Macro-referenced attributes are snapshotted from the contact **at enrollment**; later contact edits do not change that enrollment’s snapshot. Set the macros before enrollment. Missing values fail with `merge_field_missing`.
+
+Snapshot values are non-null scalars; strings must be plain text, at most 18,000 characters each, and the per-contact metadata must fit 32 KiB (32,768 bytes), at most 50 keys. `body_html` can reference these scalar values as text; do not store HTML fragments in contact attributes for insertion as markup. Use the segment field catalog’s defined attribute keys and operators to select the audience.
+
+<!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json (update_contact and enrollment inputs); contracts/mcp-registry/generated/package-workflows.json (enroll_campaign_contacts); contacts/attribute_definition.py; supabase/migrations/20260912_221550_campaign_html_member_metadata_snapshot.sql (macro-referenced snapshot including subject/text/HTML); campaigns/member_metadata_contracts.py (limits); campaigns/revisions/merge_preview.py (merge_field_missing). -->
 
 ## Segments
 

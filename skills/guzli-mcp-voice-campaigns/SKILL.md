@@ -29,6 +29,24 @@ Install and follow **`guzli-mcp-core`** first. Email is skill **`guzli-mcp-email
 
 Every voice campaign is a campaign like email: contacts or a segment as the audience, a revision with one voice step, caps, readiness, publish, enroll, run. The agent talks as itself, using the voice profile of the agent. Every call carries your call instructions, and optionally a list of answers to collect.
 
+## One-off call: `call_contact_now`
+
+For an operator-directed call to one recipient, use `call_contact_now`. Supply exactly one of `contact_id` or E.164 `phone_number`, required nonblank `call_instructions` and required stable `idempotency_key`; optional fields are `initial_message`, `post_call_extraction`, `caller_number`.
+
+```json
+call_contact_now {"phone_number":"+12025550123","call_instructions":"Follow up on the information the person requested. Answer their questions and end the call when finished.","idempotency_key":"<stable key for this call>"}
+```
+
+Like `send_email`, this uses automatic posture with a tenant override that may hold for approval. It is operator-directed only, is not offered on customer chat, and refuses a missing operator principal with `initiating_principal_required` and `required.initiating_principal_kind: "operator"`. A held result is not completion; use core’s approval polling guidance.
+
+It bypasses campaign pacing, quiet hours, campaign daily caps and campaign permission rows. Voice balance, plan entitlement (`calls_per_minute`, `calls_per_hour`, `calls_per_day`, `calls_per_month` and concurrency), destination restrictions and duplicate protection still apply. Keep the same key for the same intended call; inspect uncertain results rather than generating a new key.
+
+Caller selection is an explicit eligible owned `caller_number`, otherwise the agent’s single eligible number. With none or several, the refusal is `caller_number_required`; an invalid explicit selection returns `caller_number_not_owned`. Both return `required.owned_numbers` as facts for choosing a caller. A number pool is a campaign requirement, not an argument to this tool.
+
+Read the returned `call_id` with `get_call {"call_id":"<call id>"}` for outcome, summary and extraction, or `list_calls {"limit":50}` for the agent’s calls. Call-read refusals are `call_attempt_not_found` (404) and `one_off_call_result_missing` (503); report the typed result. Do not treat dispatch acceptance as a completed conversation.
+
+<!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json (call_contact_now/get_call/list_calls); engine/model_first/internal_mcp/call_contact_now_tool.py; engine/model_first/internal_mcp/call_contact_now.py; engine/model_first/internal_mcp/builtin_registrations.py (posture); campaigns/calls/one_off_refusal_contracts.py; tests/api/test_call_route_typed_refusals.py. -->
+
 ## What you need before a campaign call
 
 | Fact | How to get it |
@@ -63,6 +81,12 @@ Voice campaign steps require recorded permission by default for channel `voice_t
    ```
    `identifier_value` is the E.164 number the campaign will dial. Bases for marketing: `explicit_opt_in`, `existing_relationship` (`cold_b2b` only if the organisation allows it; the usual allowed set is `explicit_opt_in`, `existing_relationship`, `recipient_requested`, `contract_or_service`). For `call_phone_number` the contact is created from the number, so create or look up the contact first (`search_contacts` / `create_contact`) and record the permission on it before dialing.
 3. Never record a permission the user did not confirm.
+
+### Creation policy knobs
+
+`create_voice_campaign`, `call_phone_number`, `call_contacts` and `call_segment` accept optional `permission_requirement` (`"required"` / `"optional"`) and `purpose` (`"marketing"` / `"transactional"`, default `"marketing"`). Omitted permission inherits the voice manifest’s **required** setting. Use the consent runbook for required steps and match its permission purpose to the campaign. Voice creation tools do not expose `unsubscribe_requirement`. These creation overrides are optional, not a claim that voice permission defaults off.
+
+<!-- Sources at 704e0b48e: contracts/mcp-registry/generated/package-workflows.json; tests/fixtures/copilot_schema_budget/current_served_catalog.json; tests/engine/model_first/internal_mcp/test_campaign_workflow_create_knobs.py; tests/engine/model_first/internal_mcp/test_campaign_workflow_permission_defaults.py. -->
 
 ## Which path
 
@@ -138,6 +162,18 @@ Use this when you want to review or edit the draft before it publishes. `create_
 6. **Run**: `run_voice_campaign {"campaign_id", "revision_id"}` → `status: "queued"`, `accepted_enrollment_ids`. Queued is not proof of a completed call; inspect the attempt.
 
 7. **Watch**: `list_campaign_call_attempts {"campaign_id"}` → `in_progress` → `completed` with `duration_seconds`.
+
+### Patch one draft step without publishing
+
+Read `get_campaign_revision` and use its draft `step_id` and current `lock_version`:
+
+```json
+update_campaign_draft_step {"campaign_id":"<campaign uuid>","revision_id":"<draft uuid>","step_id":"<step uuid>","expected_lock_version":1,"patch":{"call_instructions":"Ask whether the requested follow-up resolved their question."}}
+```
+
+Replace the illustrative `1` with the version read. Voice patch fields are `call_instructions`, `initial_message`, `post_call_extraction`, `permission_requirement`. The tool never publishes; use its new lock version for the later publish. Stale input returns `campaign_revision_version_conflict`, `expected_lock_version`, `current_lock_version`, and `required_action: "reread_revision"`. Reread and reconcile; also reread after an uncertain write. Use `revise_campaign` for a complete-draft replacement that publishes, including changes beyond these patch fields.
+
+<!-- Sources at 704e0b48e: tests/fixtures/copilot_schema_budget/current_served_catalog.json, update_campaign_draft_step/CampaignStepFieldPatch; contracts/mcp-registry/generated/package-workflows.json; campaigns/revisions/step_patch_refusals.py; campaigns/revisions/step_patch_manager.py. -->
 
 ## What happens on the call
 
