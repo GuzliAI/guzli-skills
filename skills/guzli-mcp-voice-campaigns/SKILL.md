@@ -16,9 +16,9 @@ metadata:
 
 The server is named guzli in the plugin configurations. Invoke tools with the
 guzli: prefix, as in `guzli:call_contact_now`; tables use bare tool names.
-Default to copilot with scopes guzli:copilot:read and guzli:copilot:act (101 tools).
-Tenant-operations is separate and only on request: guzli:read and guzli:write
-(130 tools). Read exposed schemas before supplying arguments.
+Default to copilot (scopes guzli:copilot:read and guzli:copilot:act).
+Tenant-operations is a separate surface under guzli:read and guzli:write, only on
+request. Read exposed schemas before supplying arguments.
 
 ## One operator-directed call
 

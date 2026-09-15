@@ -16,9 +16,9 @@ metadata:
 
 The server is named guzli in the plugin configurations. Invoke tools with the
 guzli: prefix, as in `guzli:find_contacts`; tables use bare tool names.
-Use copilot by default: scopes guzli:copilot:read and guzli:copilot:act expose
-101 tools. Tenant-operations is separate, with 130 tools under guzli:read and
-guzli:write, only on request. Do not combine the surface counts.
+Use copilot by default (scopes guzli:copilot:read and guzli:copilot:act).
+Tenant-operations is a separate surface under guzli:read and guzli:write, only on
+request.
 
 ## Connect and discover
 
