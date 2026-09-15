@@ -1,0 +1,10 @@
+{
+  "skills": ["guzli-mcp-voice-campaigns"],
+  "query": "Prepare an explicit-audience voice survey with permission required. A recipient lacks recorded permission and the draft has no caller-ID pool or daily cap.",
+  "expected_behavior": [
+    "Resolves an active caller-ID pool and sets the approved daily cap before publishing.",
+    "Checks voice_twilio permission for the campaign purpose and asks for missing evidence.",
+    "Captures only confirmed permission and re-checks it; does not switch permission to optional.",
+    "Fixes and re-checks readiness, publishes, verifies publication, enrolls, then runs only when authorized."
+  ]
+}

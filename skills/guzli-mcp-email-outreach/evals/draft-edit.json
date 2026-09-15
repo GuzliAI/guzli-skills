@@ -1,0 +1,10 @@
+{
+  "skills": ["guzli-mcp-email-outreach"],
+  "query": "Change the subject and HTML in this Guzli email draft, but do not publish it. The first edit reports a stale lock.",
+  "expected_behavior": [
+    "Reads the draft and uses its step_id and lock_version with guzli:update_campaign_draft_step.",
+    "Re-reads and reconciles after the stale lock rather than retrying the old expected_lock_version.",
+    "Verifies the saved subject, body_html and independent body_text.",
+    "Does not call a publish or run tool."
+  ]
+}

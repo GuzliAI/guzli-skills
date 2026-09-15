@@ -1,0 +1,10 @@
+{
+  "skills": ["guzli-mcp-core"],
+  "query": "Ingest the support URL I supplied into Guzli. If it fails, investigate and file one bug report without including private customer data.",
+  "expected_behavior": [
+    "Uses guzli:knowledge-ingest_url for only the requested source and retains the returned task identifier.",
+    "Uses guzli:check_ingestion_status for that task and distinguishes acceptance from completion.",
+    "Verifies successful ingestion with guzli:knowledge_search or reports the failure facts.",
+    "Uses guzli:report_issue only for the authorized bug report, excludes secrets, and does not duplicate an uncertain submission."
+  ]
+}
