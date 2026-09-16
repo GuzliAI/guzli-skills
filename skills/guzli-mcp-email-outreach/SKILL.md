@@ -1,14 +1,13 @@
 ---
 name: guzli-mcp-email-outreach
 description: >-
-  Sends Guzli email and prepares, edits, publishes and monitors email campaigns
-  for contacts or segments. Use when the user mentions Guzli and wants to send an email,
-  email a confirmed recipient a formatted appointment confirmation with a heading
-  and plain-text alternative, prepare a permission-required marketing email campaign,
-  check contact permission, edit a draft subject or HTML, resolve a stale lock,
-  publish or enroll contacts, or check whether email was delivered. Routes outbound phone calls
-  to guzli-mcp-voice-campaigns and shared connection, contact, knowledge or number
-  administration to guzli-mcp-core.
+  Sends email through Guzli and creates, edits, publishes and monitors Guzli
+  email campaigns. Use when the user mentions Guzli and wants to send an email
+  or confirmation, write HTML email content, create a marketing or
+  transactional email campaign, check or capture contact permission, edit a
+  campaign draft or step, publish, enroll contacts, or check delivery results.
+  Routes phone calls to guzli-mcp-voice-campaigns and contacts, tags,
+  knowledge or phone numbers to guzli-mcp-core.
 license: Apache-2.0
 compatibility: Requires a host with Agent Skills support and the Guzli MCP server at https://mcp.guzli.com/mcp.
 metadata:
