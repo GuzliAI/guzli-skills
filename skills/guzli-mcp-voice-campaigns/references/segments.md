@@ -1,6 +1,6 @@
 # Segment audience preparation
 
-All tools here are copilot. Use the explicit-audience campaign checklist by
+Use the explicit-audience campaign checklist by
 default; use this branch when the user requests a segment audience.
 
 - [ ] Read `guzli:get_segment_field_catalog` for fields and allowed operators.

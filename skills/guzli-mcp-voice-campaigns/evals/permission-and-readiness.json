@@ -5,6 +5,6 @@
     "Resolves an active caller-ID pool and sets the approved daily cap before publishing.",
     "Checks voice_twilio permission for the campaign purpose and asks for missing evidence.",
     "Captures only confirmed permission and re-checks it; does not switch permission to optional.",
-    "Fixes and re-checks readiness, publishes, verifies publication, enrolls, then runs only when authorized."
+    "Uses only the readiness-gated publish result to establish readiness; fixes reported failures, re-reads saved state, and publishes again with the latest lock. Verifies publication, enrolls, then runs only when authorized."
   ]
 }

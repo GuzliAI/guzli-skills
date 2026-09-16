@@ -14,17 +14,15 @@ metadata:
 
 # Guzli email outreach
 
-The server is named guzli in the plugin configurations. Invoke tools with the
-guzli: prefix, as in `guzli:send_email`; tables use bare tool names.
-Default to copilot (scopes guzli:copilot:read and guzli:copilot:act).
-Tenant-operations is a separate surface under guzli:read and guzli:write, only on
-request. Read exposed schemas before supplying arguments.
+The server is named guzli in plugin configurations; the fully qualified form is guzli:<tool>.
+Complete the Guzli OAuth sign-in in your host.
+Read exposed schemas before supplying arguments to the Guzli tools.
 
 ## One recipient
 
 - [ ] Resolve the recipient and preview the subject and content. Capture the
   user's authorization before sending; a contact record is not permission.
-- [ ] Use `guzli:send_email` on copilot with required plain text and optional
+- [ ] Use `guzli:send_email` with required plain text and optional
   independent HTML. Write real markup directly in the body_html tool argument,
   not escaped tags or merely HTML pasted into the chat response.
 
@@ -49,19 +47,19 @@ permission-required campaign enrollment or send.
 - [ ] Confirm audience, content, purpose, sender, postal address and daily cap.
 - [ ] Check and capture permission, then re-check; never invent evidence or
   change permission to optional merely to get past a refusal.
-- [ ] Create or edit the draft; validate the saved content and readiness.
-- [ ] Publish only through the readiness-gated workflow when authorized.
+- [ ] Create or edit the draft; validate the saved content.
+- [ ] When authorized, publish through the readiness-gated workflow. Fix reported
+  failures and publish again; only its result establishes readiness.
 - [ ] Verify publication, enroll the approved explicit audience, then run.
 - [ ] Read enrollment and campaign results; queued does not mean delivered.
 
-| Task | Tool | Surface |
-| --- | --- | --- |
-| Resolve contacts | `find_contacts`, `lookup_contact` | copilot |
-| Read and edit draft | `get_campaign_revision`, `update_campaign_draft_step` | copilot |
-| Create and publish | `create_email_campaign`, `publish_email_campaign` | copilot |
-| Enroll and run | `enroll_campaign_contacts`, `run_email_campaign` | copilot |
-| Inspect outcomes | `get_campaign_enrollment_summary`, `campaign_measurement` | copilot |
-| Readiness preflight when separately authorized | `get_campaign_revision_readiness` | tenant-operations |
+| Task | Tool |
+| --- | --- |
+| Resolve contacts | `find_contacts`, `lookup_contact` |
+| Read and edit draft | `get_campaign_revision`, `update_campaign_draft_step` |
+| Create and publish | `create_email_campaign`, `publish_email_campaign` |
+| Enroll and run | `enroll_campaign_contacts`, `run_email_campaign` |
+| Inspect outcomes | `get_campaign_enrollment_summary`, `campaign_measurement` |
 
 For a segment audience, follow [segment preparation](references/segments.md);
 do not explicitly enroll contacts into a segment campaign. For pause, resume,

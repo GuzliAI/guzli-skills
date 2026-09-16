@@ -14,16 +14,14 @@ metadata:
 
 # Guzli MCP core
 
-The server is named guzli in the plugin configurations. Invoke tools with the
-guzli: prefix, as in `guzli:find_contacts`; tables use bare tool names.
-Use copilot by default (scopes guzli:copilot:read and guzli:copilot:act).
-Tenant-operations is a separate surface under guzli:read and guzli:write, only on
-request.
+The server is named guzli in plugin configurations; the fully qualified form is guzli:<tool>.
+Complete the Guzli OAuth sign-in in your host.
+Read exposed schemas before supplying arguments to the Guzli tools.
 
 ## Connect and discover
 
-- [ ] Connect the host to https://mcp.guzli.com/mcp and complete its OAuth flow.
-- [ ] Inspect the exposed tools and their input schemas; match the requested surface.
+- [ ] Connect the host to https://mcp.guzli.com/mcp.
+- [ ] Inspect the Guzli tools and their input schemas.
 - [ ] Resolve identifiers from returned facts or the user, not from unrelated records.
 - [ ] If a tool is absent, check authorization and reconnect; re-list before acting.
 
@@ -34,15 +32,15 @@ Read [approval handling](references/approval.md) when a tool returns a hold.
 
 ## Select the operation
 
-| Request | Tool | Surface |
-| --- | --- | --- |
-| Find contacts | `find_contacts`, `lookup_contact` | copilot |
-| Write contact facts | `create_contact`, `update_contact` | copilot |
-| Read or change tags | `browse_tags`, `add_tag`, `edit_tag`, `mutate_contact_tag` | copilot |
-| Inspect an agent's tools | `get_agent_tool_configuration` | copilot |
-| Ingest a URL and check progress | `knowledge-ingest_url`, `check_ingestion_status` | copilot |
-| Search, buy, inspect, release numbers | `search_managed_phone_numbers`, `buy_managed_phone_number`, `list_owned_phone_numbers`, `release_managed_phone_number` | copilot |
-| Report a product bug | `report_issue` | copilot |
+| Request | Tool |
+| --- | --- |
+| Find contacts | `find_contacts`, `lookup_contact` |
+| Write contact facts | `create_contact`, `update_contact` |
+| Read or change tags | `browse_tags`, `add_tag`, `edit_tag`, `mutate_contact_tag` |
+| Inspect an agent's tools | `get_agent_tool_configuration` |
+| Ingest a URL and check progress | `knowledge-ingest_url`, `check_ingestion_status` |
+| Search, buy, inspect, release numbers | `search_managed_phone_numbers`, `buy_managed_phone_number`, `list_owned_phone_numbers`, `release_managed_phone_number` |
+| Report a product bug | `report_issue` |
 
 ## Bound mutations
 

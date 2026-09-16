@@ -1,6 +1,6 @@
 # Email monitoring and personalization
 
-All tools here use copilot. Read their exposed input schemas.
+Read the Guzli tools' exposed input schemas.
 
 | Need | Tool |
 | --- | --- |
@@ -36,5 +36,9 @@ All tools here use copilot. Read their exposed input schemas.
 ## Replies
 
 - [ ] Use `guzli:list_customer_conversations` to locate relevant conversations.
-- [ ] Read the selected conversation with `guzli:read_conversation` and report
+- [ ] Read the selected conversation with the tool below and report
   the actual reply. Do not infer a reply from campaign enrollment state.
+
+| Read | Tool |
+| --- | --- |
+| Conversation messages | `read_conversation` |

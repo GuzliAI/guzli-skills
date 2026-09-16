@@ -2,8 +2,8 @@
   "skills": ["guzli-mcp-core"],
   "query": "Find our existing contacts and tags in Guzli, then show the agent's tool configuration. Do not change anything.",
   "expected_behavior": [
-    "Uses guzli:find_contacts, guzli:browse_tags and guzli:get_agent_tool_configuration on the copilot surface.",
-    "Reads exposed schemas and does not request tenant-operations scopes for copilot discovery.",
+    "Uses guzli:find_contacts, guzli:browse_tags and guzli:get_agent_tool_configuration.",
+    "Reads exposed schemas and uses the Guzli tools after the host's OAuth sign-in.",
     "Reports returned facts without creating contacts or changing configuration."
   ]
 }

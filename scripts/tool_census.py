@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Audit inline backticked identifiers against catalog surfaces and schemas.
+"""Audit inline backticked identifiers against the copilot catalog.
 
-Run with --catalog, --primitives, --skills-root, and --plugin-root paths.
+Run with --catalog, --skills-root, and --plugin-root paths.
 Uses only the Python standard library. Emits a Markdown table and fails on
 unknown identifiers, missing inputs, malformed evidence, or empty skill trees.
 Fenced examples are not inline code spans; their JSON arguments need a separate
@@ -17,7 +17,6 @@ import sys
 
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_.:/-]*")
 INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)", re.DOTALL)
-SURFACES = ("copilot", "tenant-operations", "webchat")
 
 
 def load_json(path):
@@ -44,64 +43,24 @@ def schema_identifiers(value):
     return found
 
 
-def build_index(catalog, registry):
-    if not isinstance(catalog, dict) or not isinstance(registry, dict):
-        raise ValueError("Catalog and primitives evidence must be JSON objects")
-    index = {}
-    names = {}
-
-    def add(identifier, surface):
-        index.setdefault(identifier, set()).add(surface)
-
-    for key, surface, name_key in (
-        ("copilot", "copilot", "name"),
-        ("hosted", "tenant-operations", "operation_name"),
-        ("webchat", "webchat", "name"),
-    ):
-        rows = catalog.get(key)
-        if not isinstance(rows, list) or not rows:
-            raise ValueError(f"Catalog {key} must be a nonempty array")
-        names[surface] = set()
-        for row in rows:
-            if key == "hosted" and isinstance(row, dict):
-                scope = row.get("oauth_scope")
-                if scope in {"guzli:copilot:read", "guzli:copilot:act"}:
-                    continue
-                if scope not in {"guzli:read", "guzli:write"}:
-                    raise ValueError(f"Hosted row has unrecognized oauth_scope: {scope!r}")
-            name = row.get(name_key) if isinstance(row, dict) else None
-            if not isinstance(name, str) or not IDENTIFIER.fullmatch(name):
-                raise ValueError(f"Catalog {key} row has invalid {name_key}: {row!r}")
-            if name in names[surface]:
-                raise ValueError(f"Duplicate tool on {surface}: {name}")
-            names[surface].add(name)
-            add(name, surface)
-            for schema_key in ("input_schema", "inputSchema", "output_schema", "outputSchema"):
-                for identifier in schema_identifiers(row.get(schema_key)):
-                    add(identifier, surface)
-
-    primitives = registry.get("primitives")
-    if not isinstance(primitives, list) or not primitives:
-        raise ValueError("Registry primitives must be a nonempty array")
-    hosted_actions = {
-        row.get("engine_action"): row["operation_name"]
-        for row in catalog["hosted"]
-        if row.get("engine_action") and row["operation_name"] in names["tenant-operations"]
-    }
-    for primitive in primitives:
-        if not isinstance(primitive, dict) or not isinstance(primitive.get("operation_id"), str):
-            raise ValueError("Primitive lacks a string operation_id")
-        operation = primitive["operation_id"]
-        action = f"{primitive.get('method')} {primitive.get('path')}"
-        for surface in SURFACES:
-            # A primitive is evidence for a surface only when the catalog names
-            # that operation, or explicitly maps its REST action to that surface.
-            if operation in names[surface] or (
-                surface == "tenant-operations" and action in hosted_actions
-            ):
-                for schema_key in ("input_schema", "output_schema"):
-                    for identifier in schema_identifiers(primitive.get(schema_key)):
-                        add(identifier, surface)
+def build_index(catalog):
+    if not isinstance(catalog, dict):
+        raise ValueError("Catalog evidence must be a JSON object")
+    rows = catalog.get("copilot")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("Catalog copilot must be a nonempty array")
+    index = set()
+    names = set()
+    for row in rows:
+        name = row.get("name") if isinstance(row, dict) else None
+        if not isinstance(name, str) or not IDENTIFIER.fullmatch(name):
+            raise ValueError(f"Catalog copilot row has invalid name: {row!r}")
+        if name in names:
+            raise ValueError(f"Duplicate tool in copilot catalog: {name}")
+        names.add(name)
+        index.add(name)
+        for schema_key in ("input_schema", "inputSchema", "output_schema", "outputSchema"):
+            index.update(schema_identifiers(row.get(schema_key)))
     return index
 
 
@@ -154,32 +113,32 @@ def census(index, roots):
     rows = []
     for identifier, files in sorted(occurrences.items()):
         lookup = identifier.removeprefix("guzli:")
-        surfaces = [surface for surface in SURFACES if surface in index.get(lookup, set())]
-        rows.append({"identifier": identifier, "surfaces": surfaces or ["none"], "files": sorted(files)})
+        status = "copilot" if lookup in index else "unknown"
+        rows.append({"identifier": identifier, "status": status, "files": sorted(files)})
     return rows
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("catalog", "primitives", "skills-root", "plugin-root"):
+    for name in ("catalog", "skills-root", "plugin-root"):
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--json", action="store_true", help="Emit rows with occurrence paths as JSON")
     args = parser.parse_args()
     try:
-        index = build_index(load_json(args.catalog), load_json(args.primitives))
+        index = build_index(load_json(args.catalog))
         rows = census(index, [("skills", args.skills_root), ("plugin", args.plugin_root)])
     except ValueError as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 2
-    unknown = [row for row in rows if row["surfaces"] == ["none"]]
+    unknown = [row for row in rows if row["status"] == "unknown"]
     if args.json:
         print(json.dumps(rows, indent=2))
     else:
-        print("| Identifier | Surface | Files |")
+        print("| Identifier | Catalog status | Files |")
         print("| --- | --- | --- |")
         for row in rows:
-            print(f"| `{row['identifier']}` | {', '.join(row['surfaces'])} | {len(row['files'])} |")
-        print(f"\nIdentifiers: {len(rows)}; none: {len(unknown)}")
+            print(f"| `{row['identifier']}` | {row['status']} | {len(row['files'])} |")
+        print(f"\nIdentifiers: {len(rows)}; unknown: {len(unknown)}")
     for row in unknown:
         print(f"ERROR: unknown identifier {row['identifier']} in {', '.join(row['files'])}", file=sys.stderr)
     return 1 if unknown else 0

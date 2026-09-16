@@ -1,7 +1,6 @@
 # Voice campaign checklist
 
-All tools here are copilot except the labeled tenant-operations readiness
-preflight. Substitute verified facts for placeholders and the latest lock for
+Substitute verified facts for placeholders and the latest lock for
 the illustrative lock value. Caps must reflect the user's approved limits.
 
 ## Prepare and create
@@ -50,25 +49,18 @@ marketing or transactional, and permission_requirement required or optional.
 
 ## Readiness, publish, enroll, run
 
-- [ ] Verify the saved script, audience, pool, profile and daily cap. If separately
-  requested and authorized, use tenant-operations `guzli:get_campaign_revision_readiness`:
-
-```json
-{"path":{"campaign_id":"<campaign UUID>","revision_id":"<draft UUID>"},"query":{},"headers":{}}
-```
-
-- [ ] Fix readiness errors and re-check. Without that surface, use the copilot
-  publish workflow's engine readiness gate, not an invented copilot preflight.
+- [ ] Verify the saved script, audience, pool, profile and daily cap.
 - [ ] When publication is authorized, use `guzli:publish_voice_campaign`:
 
 ```json
 {"campaign_id":"<campaign UUID>","revision_id":"<draft UUID>","expected_lock_version":1,"agent_id":"<agent UUID>"}
 ```
 
-- [ ] Inspect ready and reasons, then verify saved state with
-  `guzli:get_campaign_revision`. Proceed only after readiness passes and the
-  revision is published. Fix returned failures and re-check state before a
-  repeat publish; an uncertain response may follow a durable change.
+- [ ] Establish readiness only from the publish workflow's result. Fix the
+  failures it reports, re-read saved state with `guzli:get_campaign_revision`,
+  then publish again with the latest lock. For an uncertain result, resolve saved
+  state before retrying; stop if unresolved. Proceed only after readiness passes
+  and publication is confirmed. A hold remains pending; do not poll for approval.
 - [ ] For an explicit audience, call `guzli:enroll_campaign_contacts`:
 
 ```json

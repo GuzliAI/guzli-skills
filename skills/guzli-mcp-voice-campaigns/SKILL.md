@@ -14,11 +14,9 @@ metadata:
 
 # Guzli voice campaigns
 
-The server is named guzli in the plugin configurations. Invoke tools with the
-guzli: prefix, as in `guzli:call_contact_now`; tables use bare tool names.
-Default to copilot (scopes guzli:copilot:read and guzli:copilot:act).
-Tenant-operations is a separate surface under guzli:read and guzli:write, only on
-request. Read exposed schemas before supplying arguments.
+The server is named guzli in plugin configurations; the fully qualified form is guzli:<tool>.
+Complete the Guzli OAuth sign-in in your host.
+Read exposed schemas before supplying arguments to the Guzli tools.
 
 ## One operator-directed call
 
@@ -26,7 +24,7 @@ request. Read exposed schemas before supplying arguments.
   Capture the user's authorization for this call before dialing.
 - [ ] Inspect `guzli:list_owned_phone_numbers` for eligible caller selection.
   Resolve ambiguity rather than inventing a caller number.
-- [ ] Call `guzli:call_contact_now` on copilot with exactly one of contact_id or
+- [ ] Call `guzli:call_contact_now` with exactly one of contact_id or
   phone_number, nonblank call_instructions, and a stable idempotency_key:
 
 ```json
@@ -52,20 +50,20 @@ structured answers and requested webhooks.
 - [ ] Check and capture permission, then re-check. Do not invent evidence or
   lower the permission requirement to get past a refusal.
 - [ ] Create or edit the draft and verify the saved instructions and extraction.
-- [ ] Fix readiness failures; publish only through the readiness-gated workflow
-  when authorized. A draft-only request stops before publish.
+- [ ] When authorized, publish through the readiness-gated workflow. Fix reported
+  failures and publish again; only its result establishes readiness.
+  A draft-only request stops before publish.
 - [ ] Verify publication, enroll the approved explicit audience, then run.
 - [ ] Inspect call attempts and extraction; report actual outcomes and pending work.
 
-| Task | Tool | Surface |
-| --- | --- | --- |
-| Resolve recipients | `find_contacts`, `lookup_contact` | copilot |
-| Discover caller-ID pool and profile | `list_telephony_number_pools`, `list_voice_profiles` | copilot |
-| Read and edit draft | `get_campaign_revision`, `update_campaign_draft_step` | copilot |
-| Create and publish | `create_voice_campaign`, `publish_voice_campaign` | copilot |
-| Enroll and run | `enroll_campaign_contacts`, `run_voice_campaign` | copilot |
-| Read calls and answers | `list_campaign_call_attempts`, `list_campaign_extraction_results` | copilot |
-| Readiness preflight when separately authorized | `get_campaign_revision_readiness` | tenant-operations |
+| Task | Tool |
+| --- | --- |
+| Resolve recipients | `find_contacts`, `lookup_contact` |
+| Discover caller-ID pool and profile | `list_telephony_number_pools`, `list_voice_profiles` |
+| Read and edit draft | `get_campaign_revision`, `update_campaign_draft_step` |
+| Create and publish | `create_voice_campaign`, `publish_voice_campaign` |
+| Enroll and run | `enroll_campaign_contacts`, `run_voice_campaign` |
+| Read calls and answers | `list_campaign_call_attempts`, `list_campaign_extraction_results` |
 
 For a segment audience, follow [segment preparation](references/segments.md);
 segment automation owns enrollment. Number purchase and release belong to the
