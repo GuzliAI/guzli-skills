@@ -1,0 +1,10 @@
+{
+  "skills": ["guzli-mcp-voice-campaigns"],
+  "query": "Call this existing contact once with my follow-up instructions. I authorize this call. The response is uncertain; do not accidentally call twice.",
+  "expected_behavior": [
+    "Uses guzli:call_contact_now with exactly one recipient, nonblank call_instructions and a stable idempotency_key.",
+    "Resolves an eligible owned caller number without inventing a number pool argument.",
+    "Inspects returned state and call results rather than issuing a fresh call with a new key.",
+    "Reports dispatch separately from a completed conversation."
+  ]
+}

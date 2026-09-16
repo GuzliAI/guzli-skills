@@ -1,127 +1,68 @@
 ---
 name: guzli-mcp-email-outreach
 description: >-
-  Sends email through Guzli MCP: one-off messages with send_email and list
-  outreach with campaigns fed by contacts or segments, including readiness,
-  publish, enroll, run, replies and the unsubscribe footer. Use for any email
-  task through Guzli MCP. Do not use for phone calls (see guzli-mcp-voice-campaigns).
+  Sends Guzli email and prepares, edits, publishes and monitors email campaigns
+  for contacts or segments. Applies to one-off email, HTML content, outreach,
+  permission checks, enrollment and email results. Routes outbound phone calls
+  to guzli-mcp-voice-campaigns and shared connection, contact, knowledge or number
+  administration to guzli-mcp-core.
 license: Apache-2.0
-compatibility: >-
-  Requires a host that supports Agent Skills (agentskills.io) and a connected
-  Guzli MCP server at https://mcp.guzli.com/mcp (OAuth via gateway.guzli.com).
-  Network access required. Works with Claude Code, Codex, Cursor, Grok, OpenClaw,
-  Muse, Hermes Agent, and other compatible agents.
+compatibility: Requires a host with Agent Skills support and the Guzli MCP server at https://mcp.guzli.com/mcp.
 metadata:
   author: Guzli
-  version: "1.6.0"
-  website: https://guzli.com
-  mcp_url: https://mcp.guzli.com/mcp
-  standard: agentskills.io
-  verified_against: "Guzli engine release 1.0.8 (live-tested end to end)"
-  hermes:
-    tags: [Guzli, MCP, Email, Campaigns, Outreach]
-    related_skills: [guzli-mcp-core, guzli-mcp-voice-campaigns]
 ---
-# Guzli MCP email outreach
 
-Install and follow **`guzli-mcp-core`** first. Phone calls are skill **`guzli-mcp-voice-campaigns`**. Tool map: [references/tool-map.md](references/tool-map.md).
+# Guzli email outreach
 
-Two ways to send email. A **one-off** message goes through `send_email`. **List outreach** goes through a campaign: contacts or a segment as the audience, one email step, caps, readiness, publish, enroll, run. Prefer campaigns over looping `send_email`.
+The server is named guzli in the plugin configurations. Invoke tools with the
+guzli: prefix, as in `guzli:send_email`; tables use bare tool names.
+Default to copilot (scopes guzli:copilot:read and guzli:copilot:act).
+Tenant-operations is a separate surface under guzli:read and guzli:write, only on
+request. Read exposed schemas before supplying arguments.
 
-## One-off email: `send_email`
+## One recipient
+
+- [ ] Resolve the recipient and preview the subject and content. Capture the
+  user's authorization before sending; a contact record is not permission.
+- [ ] Use `guzli:send_email` on copilot with required plain text and optional
+  independent HTML. Write real markup directly in the body_html tool argument,
+  not escaped tags or merely HTML pasted into the chat response.
 
 ```json
-send_email {"to": "person@example.com", "subject": "Your appointment", "body": "Plain text body.", "idempotency_key": "<uuid you generate>"}
+{"to":"person@example.com","subject":"Appointment confirmation","body_text":"Your appointment is confirmed.","body_html":"<h2>Appointment confirmed</h2><p>Thank you.</p>"}
 ```
 
-The sender is the agent's configured address. The result is a structured outcome, not the message bytes. If the agent's policy holds outbound email for approval, the result says `held_for_approval`; a human approves it in the dashboard and it is sent as written. Reuse the same `idempotency_key` when you retry; a new key is a new email.
+- [ ] Check the exposed schema for idempotency_key before calling: supply a
+  stable key if declared and required; do not add undeclared arguments.
+- [ ] Inspect the result. A hold is pending, not sent. Do not resend an uncertain
+  message or poll a completed operation identifier to manufacture confirmation.
+  Use [approval handling](references/approval.md) for a hold.
 
-## What you need before a campaign
+## Contact-list outreach
 
-| Fact | How to get it |
-|---|---|
-| `agent_id` | `list_campaigns` (any row) or the user |
-| `tenant_postal_address` | The organisation's mailing address (required by law in the footer) |
-| `purpose` | `marketing` or `transactional` |
-| `admission_policy` | Two labels you choose, e.g. `{"subject_key":"organization","effect_key":"email.send:<campaign-name>"}` |
-| `cap_policy.maximum_daily_channel_units` | You choose it. Required to publish. Usually also `maximum_enrollments` |
-| Contact ids with real emails | `search_contacts` / `create_contact` |
-| A verified sender | Readiness tells you if the agent's sending identity is not ready; fix it in the dashboard |
+Use a campaign rather than looping one-off sends. Follow
+[the campaign checklist](references/campaign.md) for creation, readiness,
+publish, enroll and run. For a draft-only request, stop after saving and verifying
+the draft. Read [permission capture](references/permission.md) before any
+permission-required campaign enrollment or send.
 
-## Consent before any email campaign (required)
+- [ ] Confirm audience, content, purpose, sender, postal address and daily cap.
+- [ ] Check and capture permission, then re-check; never invent evidence or
+  change permission to optional merely to get past a refusal.
+- [ ] Create or edit the draft; validate the saved content and readiness.
+- [ ] Publish only through the readiness-gated workflow when authorized.
+- [ ] Verify publication, enroll the approved explicit audience, then run.
+- [ ] Read enrollment and campaign results; queued does not mean delivered.
 
-Every campaign email is checked against a recorded permission for the contact, channel `email` and the campaign's `purpose`. Without one the attempt fails with `permission_missing` and nothing is sent. `send_email` (one-off) is not a campaign and is not checked this way.
+| Task | Tool | Surface |
+| --- | --- | --- |
+| Resolve contacts | `find_contacts`, `lookup_contact` | copilot |
+| Read and edit draft | `get_campaign_revision`, `update_campaign_draft_step` | copilot |
+| Create and publish | `create_email_campaign`, `publish_email_campaign` | copilot |
+| Enroll and run | `enroll_campaign_contacts`, `run_email_campaign` | copilot |
+| Inspect outcomes | `get_campaign_enrollment_summary`, `campaign_measurement` | copilot |
+| Readiness preflight when separately authorized | `get_campaign_revision_readiness` | tenant-operations |
 
-1. Check: `list_contact_permission_heads {"path": {"contact_id": "<contact uuid>"}}`. You need an item with `channel_key: "email"`, `purpose` equal to your campaign's purpose and `state: "active"`.
-2. If missing, confirm the basis with the user and record it. Tested body (every field is required; `captured_at` is now in ISO-8601; `notice_text_digest` is the SHA-256 hex of the consent statement you are recording, for example the user's sentence granting it; the `*_ref`/`*_id` strings are your own audit labels):
-   ```json
-   capture_operator_permission {
-     "path": {"contact_id": "<contact uuid>"},
-     "body": {
-       "identifier_type": "email", "identifier_value": "<the contact's email address>",
-       "channel_key": "email", "purpose": "transactional",
-       "basis_key": "existing_relationship",
-       "captured_at": "2026-09-11T14:00:00Z", "expires_at": null,
-       "source_ref": "operator confirmation in chat 2026-09-11",
-       "notice_text_digest": "<64 hex chars>", "notice_version": "chat-v1",
-       "tenant_compliance_profile_version": 1,
-       "evidence_ref": "chat 2026-09-11 user message", "attribution_ref": "operator:<user email>",
-       "causation_id": "consent-<contact uuid>", "correlation_id": "<campaign name>"
-     }
-   }
-   ```
-   Response: `permission_record_id`, `state: "active"`, `channel_key`, `purpose`, `basis_key`. Use `purpose: "marketing"` with `explicit_opt_in` or `existing_relationship` for marketing mail; `recipient_requested`, `contract_or_service`, `legal_obligation` are transactional only; `cold_b2b` is marketing only. The organisation's allowed bases (dashboard) are usually `explicit_opt_in`, `existing_relationship`, `recipient_requested`, `contract_or_service`; another basis fails the send with `permission_basis_not_allowed`.
-3. One record per contact, per channel, per purpose. `identifier_value` must be the address the campaign will send to.
-
-## Path A — one call for a fresh cohort
-
-- `email_contacts` (explicit contact ids) or `email_segment` (a materialized segment): creates, publishes, enrolls and queues in one call. Required: `name`, `agent_id`, `subject`, `body_text`, `tenant_postal_address`, `purpose`, `admission_policy`, `request_id` (uuid), `requested_at` (ISO time), plus `contact_ids` or `segment_id` + `segment_version_id` + `maximum_age_seconds`. Add `cap_policy`, `link`, `description` as needed.
-- Response: `status: "queued"`, `campaign_id`, `campaign_revision_id`, `accepted_enrollment_ids`.
-
-## Path B — step by step (tested sequence)
-
-1. `create_email_campaign {"name","agent_id","audience_policy":{"kind":"explicit"},"subject","body_text","tenant_postal_address","purpose","admission_policy","cap_policy":{"maximum_daily_channel_units":100,"maximum_enrollments":100}}` → `campaign_id`, `revision_id`, `lock_version`. Optional `link` (appended to the body as a typed link), `description`, `quiet_hours_policy`, `schedule_policy`.
-2. `get_campaign_revision_readiness {"path":{"campaign_id","revision_id"}}` → fix every error reason.
-3. `publish_email_campaign {"campaign_id","revision_id","expected_lock_version"}`.
-4. Explicit audience: `enroll_campaign_contacts {"campaign_id","contact_ids":[…],"requested_at"}`. Segment audience: skip this; segment automation enrolls.
-5. `run_email_campaign {"campaign_id","revision_id","enrollment_ids":[…]}` or `{"campaign_id","revision_id","all_active":true}` (exactly one of the two) → `status: "queued"`.
-6. Check with `list_campaign_enrollments` / `get_campaign_enrollment_summary` and the campaign's activity.
-
-### Changing a draft before publish: `revise_campaign`
-
-`get_campaign_revision` → edit `definition` → `revise_campaign {"campaign_id","source_revision_id","existing_draft_revision_id": <the draft>, "draft": <definition>}`. Send only fields the schema declares; keep the draft's own `step_id`s. **`revise_campaign` publishes the revision.** Do not call `publish_email_campaign` afterwards.
-
-Common edit: make the unsubscribe footer optional for a campaign — set the email step's `unsubscribe_requirement` to `"optional"` in the draft (`"required"` is the default). Only do this for mail that is not marketing.
-
-## Segments
-
-- `get_segment_field_catalog` first; use only listed `field_key` + `allowed_operators`.
-- `create_segment` (`publish: true`) with an expression; every predicate needs a client-generated `predicate_id` (uuid). Example predicate:
-  ```json
-  {"kind":"predicate","predicate_id":"<uuid>","field_key":"contact.email","operator":"in","value":{"kind":"text_set","value":["person@example.com"]}}
-  ```
-- `materialize_segment` (`segment_id`, `segment_version_id`) → `counts.matched`; keep the materialization `id`.
-- Segment audience payload: `{"kind":"segment","segment_version_id":"…","materialization_selection":"exact","segment_materialization_id":"…","maximum_age_seconds":300,"enroll_on_segment_entry":true,"unenroll_on_segment_exit":false}` (`current_at_publish` instead of `exact` to take whatever is current at publish).
-- `list_segment_members`: only `segment_id`, optional version, `limit`, `offset`.
-
-## Replies
-
-Every campaign message carries a message id and a per-thread reply address. A reply is matched to the campaign message and lands in the agent's inbox as a conversation; the campaign step does not advance because of a reply. Read replies through the conversation tools, not the campaign tools.
-
-## Rules that save you a round trip
-
-- `permission_missing` on a send attempt: the recipient has no active permission for `email` with the campaign's `purpose`. Transactional needs one as much as marketing does. Record it (section above) and run again; do not retry the same run.
-- Readiness before publish; `campaign_daily_missing` means the daily cap is unset.
-- Explicit audience → you enroll. Segment audience → automation enrolls; `enroll_campaign_contacts` is refused with `campaign_enrollment_explicit_audience_required`.
-- `run_email_campaign` takes exactly one of `all_active` or `enrollment_ids`.
-- `revise_campaign` publishes; no second publish.
-- Contacts: omit `custom_attributes` unless the org has configured keys; never invent addresses.
-- Few standing segments and campaigns; never one campaign per contact or per file.
-
-## Verify
-
-Every recipient has an active `email` permission for the campaign's purpose; readiness had no error reasons; the campaign is published; the enrollment summary matches the intended audience; the run returned `queued`; the user has campaign id, revision id and the outcome.
-
-## Anti-patterns
-
-Running a campaign before checking permissions; recording a permission the user did not confirm; skipping the daily cap; enrolling contacts on a segment campaign; a second publish after `revise_campaign`; pasting server-owned fields (`extraction_schema_version_id`) or foreign `step_id`s into a draft; undeclared arguments on `list_segment_members`; missing `predicate_id`; looping `send_email` for a list; one campaign per contact.
+For a segment audience, follow [segment preparation](references/segments.md);
+do not explicitly enroll contacts into a segment campaign. For pause, resume,
+replies and result reading, use [the tool map](references/tool-map.md).

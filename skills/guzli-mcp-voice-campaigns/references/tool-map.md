@@ -1,50 +1,57 @@
-# Host note
+# Voice results and extraction
 
-Tool names below are **remote** Guzli MCP names. Your agent host may show a namespace or prefix; match on these remote names when invoking. Confirm live schemas.
+All tools here use copilot. Inspect exposed schemas before supplying arguments.
 
-## One-call dial workflows (script required; extraction optional)
+| Need | Tool |
+| --- | --- |
+| Calls | `list_calls`, `get_call` |
+| Campaign attempts | `list_campaign_call_attempts`, `get_campaign_call_attempt` |
+| Captured answers | `list_campaign_extraction_results`, `get_campaign_extraction_result` |
+| Campaign state | `get_campaign`, `get_campaign_enrollment_summary`, `campaign_measurement` |
+| Pause or resume | `pause_campaign_now`, `resume_campaign_now` |
+| Webhook setup | `list_webhook_events`, `create_webhook_integration` |
 
-| Remote name | Role |
-|---|---|
-| `call_phone_number` | Create + publish + enroll + run for one E.164 number: `name`, `agent_id`, `phone_number`, `call_instructions` (required), `number_pool_id`, `admission_policy`, `cap_policy` (optional `initial_message`, `post_call_extraction`, `quiet_hours_policy`, `schedule_policy`, `voice_profile_id`) |
-| `call_contacts` | Same for explicit `contact_ids` |
-| `call_segment` | Same for a `segment_id` (materializes, creates, publishes, runs) |
+## Configure structured answers
 
-## Step by step
+- [ ] Identify only the answers the user needs and their types. Example input:
+  "Capture the person's preferred callback number."
+- [ ] Add this post_call_extraction object to campaign creation or the draft-step
+  patch; keep call_instructions aligned with the question:
 
-| Remote name | Role |
-|---|---|
-| `create_voice_campaign` | Draft: `name`, `agent_id`, `audience_policy`, `number_pool_id`, `admission_policy`, `cap_policy` (optional `call_instructions`, `initial_message`, `post_call_extraction`, `quiet_hours_policy`, `schedule_policy`, `voice_profile_id`) → `campaign_id`, `revision_id`, `lock_version` |
-| `get_campaign_revision` | Read the draft `definition` (operation) |
-| `revise_campaign` | Replace the draft with the edited definition **and publish it**: `campaign_id`, `source_revision_id`, `existing_draft_revision_id` (= the draft), `draft`. Drop `extraction_schema_version_id`; keep the draft's own `step_id`s |
-| `get_campaign_revision_readiness` | Readiness reasons (operation) |
-| `publish_voice_campaign` | Publish a draft you did NOT revise (`campaign_id`, `revision_id`, `expected_lock_version`, `agent_id`). Never after `revise_campaign` |
-| `enroll_campaign_contacts` | Explicit-audience campaigns: `campaign_id`, `contact_ids`, `requested_at` |
-| `run_voice_campaign` | Start dialing: `campaign_id`, `revision_id` → `queued` |
-| `list_campaign_call_attempts` / `get_campaign_call_attempt` | Dial attempts, outcomes, recording, and the automatic `post_event_summary` (operation) |
-| `list_campaign_extraction_results` / `get_campaign_extraction_result` | Captured answers per call (operation) |
-| `get_campaign_enrollment_summary` / `list_campaign_enrollments` | Enrollment dispositions |
+```json
+{
+  "is_enabled":true, "schema_name":"callback",
+  "fields":[{"field_key":"callback_number","label":"Preferred callback number","value_type":"phone","required":true}],
+  "require_schema_validation":true, "allow_partial":true
+}
+```
 
-## Permissions (operations; required before any run)
+- [ ] Re-read the draft through `guzli:get_campaign_revision`; verify instructions
+  and extraction before publish. Correct mismatches and re-read after saving.
 
-| Remote name | Role |
-|---|---|
-| `list_contact_permission_heads` | `{"path": {"contact_id"}}` → active permissions per channel and purpose |
-| `capture_operator_permission` | `{"path": {"contact_id"}, "body": {...}}` → records one; body in SKILL.md "Consent before any call" |
+The example allows a partial result so an unanswered question is distinguishable
+from a completed answer; set that choice to the user's requirement. Supported
+value_type choices are text, number, boolean, date, datetime, email, phone, url
+and enum. For enum, supply enum_values. Do not send server-owned extraction ids.
 
-## Discovery (operations)
+## Read outcomes
 
-| Remote name | Role |
-|---|---|
-| `list_telephony_number_pools` / `get_telephony_number_pool` | Caller-ID pools. Required for voice readiness; no default |
-| `list_telephony_phone_numbers` | Owned numbers (pool members) |
-| `list_voice_profiles` / `get_voice_profile` | Voice profiles; set the agent's on the campaign step |
-| `search_managed_phone_numbers` / `buy_managed_phone_number` / `release_managed_phone_number` | Number inventory (costs money; confirm with the user) |
+- [ ] Inspect `guzli:list_campaign_call_attempts` for the campaign. Read a selected
+  attempt with `guzli:get_campaign_call_attempt`; do not equate queue acceptance
+  with a completed conversation.
+- [ ] Read `guzli:list_campaign_extraction_results` and the selected
+  `guzli:get_campaign_extraction_result` for actual captured values and status.
+- [ ] Compare results to the requested fields. Report missing or partial answers
+  explicitly; do not invent values or place another call to fill them unasked.
 
-## Voice step `channel_config` keys you will use
+## Pause, resume or add a webhook
 
-`call_instructions` (prose), `post_call_extraction` (`is_enabled`, `schema_name`, `fields[]`, `require_schema_validation`, `allow_partial`), `voice_profile_id`, `number_pool_id`, `initial_message` (opening line, optional; none is spoken when unset), `end_call`, `voicemail_drop`, `ivr_mode`, `retry_policy`, `trust.call_reason`, `background_ambience`. `extraction_schema_version_id` is server-owned: never send it.
-
-## Webhook
-
-Event `voice_session_status` (subscribe an endpoint to it): `status`, `campaign_id`, `conversation_id`, `provider_call_id`, `duration_seconds`, `recording_url`, `prospect`, `post_call_extraction` {`structured_data`, `status`, `validation_errors`, `source`}.
+- [ ] For an authorized pause or resume, resolve the campaign and use
+  `guzli:pause_campaign_now` or `guzli:resume_campaign_now` with the exposed schema.
+- [ ] Re-read `guzli:get_campaign` and verify the requested state. Inspect an
+  uncertain result before any repeat mutation.
+- [ ] For a requested webhook, inspect `guzli:list_webhook_events`; confirm the
+  destination and selected event from its returned catalog.
+- [ ] Use `guzli:create_webhook_integration` with the exposed argument shape;
+  verify returned destination and event selection. Do not create a duplicate
+  integration after an uncertain response or call a recipient as a webhook test.

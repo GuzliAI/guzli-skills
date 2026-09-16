@@ -1,0 +1,10 @@
+{
+  "skills": ["guzli-mcp-core"],
+  "query": "Find a US phone number for my Guzli agent. Show me the cost before buying. If I approve and the purchase times out, check whether it succeeded.",
+  "expected_behavior": [
+    "Resolves the agent and telephony account, then uses guzli:search_managed_phone_numbers with telephony_account_id and iso_country.",
+    "Presents the selected number and available purchase details and waits for explicit spending authorization.",
+    "Uses guzli:buy_managed_phone_number once for the selected e164 and verifies with guzli:list_owned_phone_numbers.",
+    "Does not buy another number or repeat an uncertain purchase before resolving inventory state."
+  ]
+}

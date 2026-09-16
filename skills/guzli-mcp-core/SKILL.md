@@ -1,117 +1,59 @@
 ---
 name: guzli-mcp-core
 description: >-
-  Connects to and operates Guzli MCP for shared product concepts: the two tool
-  layers, discovery of ids (agents, voice profiles, number pools, phone numbers),
-  contacts, lifecycle stages, readiness checks, and connector hygiene. Use when
-  setting up Guzli MCP, listing or debugging tools, creating or searching
-  contacts, or before any campaign work. Do not use for the channel runbooks
-  themselves (see guzli-mcp-email-outreach and guzli-mcp-voice-campaigns).
+  Manages Guzli MCP connection, contact discovery, tags, segments, knowledge,
+  managed phone numbers, agent configuration and issue reports. Applies when
+  users request these shared operations or troubleshoot Guzli tools. Routes
+  email sending to guzli-mcp-email-outreach and outbound calls to
+  guzli-mcp-voice-campaigns; does not own either channel's campaign runbook.
 license: Apache-2.0
-compatibility: >-
-  Requires a host that supports Agent Skills (agentskills.io) and a connected
-  Guzli MCP server at https://mcp.guzli.com/mcp (OAuth via gateway.guzli.com).
-  Network access required. Works with Claude Code, Codex, Cursor, Grok, OpenClaw,
-  Muse, Hermes Agent, and other compatible agents.
+compatibility: Requires a host with Agent Skills support and the Guzli MCP server at https://mcp.guzli.com/mcp.
 metadata:
   author: Guzli
-  version: "1.6.0"
-  website: https://guzli.com
-  mcp_url: https://mcp.guzli.com/mcp
-  standard: agentskills.io
-  verified_against: "Guzli engine release 1.0.8 (live-tested end to end)"
-  hermes:
-    tags: [Guzli, MCP, Contacts, CRM]
-    related_skills: [guzli-mcp-email-outreach, guzli-mcp-voice-campaigns]
 ---
 
 # Guzli MCP core
 
-Portable foundation for Guzli MCP on any Agent Skills host. Channel runbooks:
+The server is named guzli in the plugin configurations. Invoke tools with the
+guzli: prefix, as in `guzli:find_contacts`; tables use bare tool names.
+Use copilot by default (scopes guzli:copilot:read and guzli:copilot:act).
+Tenant-operations is a separate surface under guzli:read and guzli:write, only on
+request.
 
-- Email (one-off and campaigns) → skill **`guzli-mcp-email-outreach`**
-- Phone calls and voice campaigns → skill **`guzli-mcp-voice-campaigns`**
+## Connect and discover
 
-Tool cheat sheet: [references/tool-map.md](references/tool-map.md).
+- [ ] Connect the host to https://mcp.guzli.com/mcp and complete its OAuth flow.
+- [ ] Inspect the exposed tools and their input schemas; match the requested surface.
+- [ ] Resolve identifiers from returned facts or the user, not from unrelated records.
+- [ ] If a tool is absent, check authorization and reconnect; re-list before acting.
 
-## Host setup
+Read [the tool map](references/tool-map.md) for contact, tag, segment, knowledge,
+configuration, conversation and issue workflows. Read
+[managed numbers](references/managed-numbers.md) before a purchase or release.
+Read [approval handling](references/approval.md) when a tool returns a hold.
 
-1. Connect Guzli MCP (`https://mcp.guzli.com/mcp`, OAuth via gateway.guzli.com).
-2. List the server's tools in your host; call them by **remote name** (example `search_contacts`). Hosts may prefix names; match on the suffix.
-3. Read a tool's **input schema** before calling it. The server rejects undeclared arguments with `invalid_workflow_request` and the path of the offending field.
+## Select the operation
 
-## The two tool layers
+| Request | Tool | Surface |
+| --- | --- | --- |
+| Find contacts | `find_contacts`, `lookup_contact` | copilot |
+| Write contact facts | `create_contact`, `update_contact` | copilot |
+| Read or change tags | `browse_tags`, `add_tag`, `edit_tag`, `mutate_contact_tag` | copilot |
+| Inspect an agent's tools | `get_agent_tool_configuration` | copilot |
+| Ingest a URL and check progress | `knowledge-ingest_url`, `check_ingestion_status` | copilot |
+| Search, buy, inspect, release numbers | `search_managed_phone_numbers`, `buy_managed_phone_number`, `list_owned_phone_numbers`, `release_managed_phone_number` | copilot |
+| Report a product bug | `report_issue` | copilot |
 
-| Layer | What it is | Examples |
-|---|---|---|
-| **Workflows** (about 25) | One call that does several engine steps | `send_email`, `create_email_campaign`, `email_segment`, `call_phone_number`, `create_voice_campaign`, `revise_campaign`, `run_voice_campaign`, `enroll_campaign_contacts` |
-| **Operations** (about 140) | Direct reads and writes, named `verb_object` | `list_campaigns`, `get_campaign_revision`, `get_campaign_revision_readiness`, `list_telephony_number_pools`, `list_voice_profiles`, `list_campaign_extraction_results` |
+## Bound mutations
 
-Use a workflow to act, an operation to find an id or check state.
+- [ ] Establish the requested object, change and scope before a write.
+- [ ] For spending, sending or releasing a number, obtain explicit authorization
+  covering that action. Contact creation alone does not establish permission to send.
+- [ ] Respect engine approval and denial. System-prompt configuration and number
+  release are ask-first actions; chat authorization does not bypass engine approval.
+- [ ] Read back changed state. Correct a rejected input before retrying; inspect an
+  uncertain result before any repeat mutation. Stop if its outcome cannot be resolved.
+- [ ] Report identifiers and observed outcome, including anything still pending.
 
-## Where ids come from
-
-| Need | Tool |
-|---|---|
-| `agent_id` | `list_campaigns` (any row) or the user |
-| Contacts | `search_contacts`, `lookup_contact`, `create_contact` |
-| Voice profile | `list_voice_profiles` (the agent's profile) |
-| Caller-ID number pool | `list_telephony_number_pools` (an active pool with an active member; there is no default) |
-| Campaign state, `lock_version`, draft `definition` | `get_campaign`, `get_campaign_revision`, `list_campaign_revisions` |
-| Readiness before publish | `get_campaign_revision_readiness` |
-| Segments | `get_segment_field_catalog`, `create_segment`, `materialize_segment`, `get_segment_readiness`, `list_segment_members` |
-| Call outcomes and captured answers | `list_campaign_call_attempts`, `list_campaign_extraction_results`, `get_campaign_extraction_result` |
-
-## The campaign shape (same for email and voice)
-
-`create_*_campaign` → (optional `get_campaign_revision` → edit → `revise_campaign`, which publishes) → or `get_campaign_revision_readiness` → `publish_*_campaign` → `enroll_campaign_contacts` (explicit audiences only) → `run_*_campaign` → check attempts / results. One-call shortcuts (`email_contacts`, `email_segment`, `call_phone_number`, `call_contacts`, `call_segment`) do the whole chain for a fresh cohort. The voice ones take the call script (`call_instructions`, required) and answer extraction directly.
-
-## Consent before any campaign send (required)
-
-Every campaign send, email or voice, marketing or transactional, is checked against a recorded permission for that contact, that channel and that purpose. No record means the attempt fails with `permission_missing`. Nothing sends until a record exists. Before enrolling anyone:
-
-1. `list_contact_permission_heads {"path": {"contact_id": "<contact uuid>"}}` → `items[]` with `channel_key`, `purpose`, `basis_key`, `state`. You need an item with `state: "active"`, the channel you will use (`email`, or `voice_twilio` for calls) and the purpose of your campaign.
-2. If there is none, ask the user on what basis this person may be contacted, then record it with `capture_operator_permission` (exact body in the email and voice skills). Bases: `explicit_opt_in`, `existing_relationship` (either purpose); `recipient_requested`, `contract_or_service`, `legal_obligation` (transactional only); `cold_b2b` (marketing only); `legitimate_interest`. The organisation's allowed bases are set in the dashboard; the usual set is `explicit_opt_in`, `existing_relationship`, `recipient_requested`, `contract_or_service`. A basis outside that set fails the send with `permission_basis_not_allowed`.
-3. Never record a permission the user did not confirm. The record names who vouched for it.
-
-## Codes you will meet
-
-| Code | Meaning | What to do |
-|---|---|---|
-| `campaign_daily_missing` | `cap_policy.maximum_daily_channel_units` unset | Set it (create or `revise_campaign`) |
-| `number_pool_missing` | Voice step has no caller-ID pool | Pass `number_pool_id` |
-| `sending_identity_not_ready` | As an error: sender/pool unusable. As a warning on a voice campaign: informational | Fix the sender or pool in the dashboard; warnings do not block |
-| `campaign_enrollment_explicit_audience_required` | `enroll_campaign_contacts` on a segment campaign | Intended; segment automation enrolls |
-| `pacing.recipient_rolling_cap` | A recipient was already called/emailed in the last 24 h | Product rule; the attempt is held with a retry time |
-| `invalid_workflow_request` | Arguments rejected against the schema; `schema_path` names the field | Fix that field; do not retry blindly |
-| `invalid_contact_patch` with `configured_attribute_keys: []` | Unknown custom attribute keys | Omit `custom_attributes` |
-| `held_for_approval` | The agent's policy holds outbound actions for a human | Tell the user; a reviewer approves in the dashboard |
-| `permission_missing` / `permission_inactive` / `permission_basis_not_allowed` | No active permission for this contact, channel and purpose, or its basis is outside the organisation's allowed set | Record one with `capture_operator_permission` (see "Consent before any campaign send"); do not retry the same run |
-
-## Contacts
-
-`search_contacts` / `lookup_contact` before create. `create_contact` with a real `source_reason_code` (lowercase snake_case). Omit `custom_attributes` unless the org has configured keys. Never invent email, phone, or name. Phones are E.164.
-
-## Lifecycle
-
-`list_lifecycle_stages`, `get_contact_lifecycle_stage`, `list_contact_events` (evidence ids), `set_contact_lifecycle_stage` only with real `to_stage_id`, `evidence_event_ids`, `reason_codes`.
-
-## Editing a draft: `revise_campaign`
-
-Read the draft with `get_campaign_revision`, edit `definition`, send it back with `existing_draft_revision_id` set to that draft. Send only fields the schema declares, keep the draft's own `step_id`s, and never send server-owned fields (`extraction_schema_version_id`). `revise_campaign` publishes the revision; do not call `publish_*_campaign` afterwards.
-
-## OAuth and parallel calls
-
-The engine rotates refresh tokens once and rejects reuse. Refresh single-flight per session, then reuse the rotated tokens for parallel calls.
-
-## Hard rules
-
-1. No fabricated contact data.
-2. No silent sending or dialing: confirm with the user before the first live send or dial in a thread.
-3. Readiness before every publish; a permission record for every recipient before every run.
-4. On a schema error, report the tool and the field; do not guess.
-5. Channel details live in the sibling skills.
-
-## Verify
-
-A harmless read succeeds (`list_lifecycle_stages`, `search_contacts`, or `list_campaigns`) and the returned ids are reusable in the channel skills.
+For email or voice work, select the matching sibling skill. Do not send through
+another channel or tool to bypass a permission failure or approval hold.

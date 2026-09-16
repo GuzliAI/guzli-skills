@@ -1,44 +1,40 @@
-# Host note
+# Email monitoring and personalization
 
-Tool names below are **remote** Guzli MCP names. Your host may prefix them; match on the remote name. Confirm live schemas.
+All tools here use copilot. Read their exposed input schemas.
 
-## One-off
+| Need | Tool |
+| --- | --- |
+| Campaign inventory and state | `list_campaigns`, `get_campaign` |
+| Enrollment details | `list_campaign_enrollments`, `get_campaign_enrollment_summary` |
+| Measurement | `campaign_measurement` |
+| Pause or resume | `pause_campaign_now`, `resume_campaign_now` |
+| Replies | `list_customer_conversations`, `read_conversation` |
+| Contact fields | `update_contact`, `search_contacts`, `get_segment_field_catalog` |
 
-| Remote name | Role |
-|---|---|
-| `send_email` | One email from the agent's address: `to`, `subject`, `body`, `idempotency_key`. May return `held_for_approval` under the agent's approval policy |
+## Monitor or pause
 
-## One-call campaign workflows
+- [ ] Resolve the campaign and read `guzli:get_campaign` plus
+  `guzli:get_campaign_enrollment_summary` and `guzli:campaign_measurement`.
+- [ ] Distinguish accepted enrollment, queued dispatch, held work and completed
+  results. Report the returned facts; do not infer delivery from a queue result.
+- [ ] For an authorized pause or resume, use `guzli:pause_campaign_now` or
+  `guzli:resume_campaign_now`, respectively, with the exposed argument shape.
+- [ ] Re-read campaign state. Resolve a refusal or uncertain response before
+  repeating the mutation; do not resume an approval-held send through another tool.
 
-| Remote name | Role |
-|---|---|
-| `email_contacts` | Create + publish + enroll + queue for explicit `contact_ids` |
-| `email_segment` | Same for `segment_id` + `segment_version_id` + `maximum_age_seconds` (materializes first) |
+## Per-contact content
 
-## Step by step
+- [ ] Inspect `guzli:search_contacts` and `guzli:get_segment_field_catalog` for
+  existing attribute definitions. Use scalar custom_attributes for per-contact
+  text and `guzli:update_contact` with contact_id and reason_code.
+- [ ] Read back the values before enrollment. Keep markup in body_html, not in
+  contact attributes intended as plain text.
+- [ ] Use only merge fields supported by the exposed campaign schema. Confirm
+  personalized content before publish and enrollment; do not assume later
+  contact edits update content already attached to an enrollment.
 
-| Remote name | Role |
-|---|---|
-| `create_email_campaign` | Draft: `name`, `agent_id`, `audience_policy`, `subject`, `body_text`, `tenant_postal_address`, `purpose`, `admission_policy`, `cap_policy` (+ `link`, `description`, `quiet_hours_policy`, `schedule_policy`, `sending_identity`) → `campaign_id`, `revision_id`, `lock_version` |
-| `get_campaign_revision_readiness` | Readiness reasons (operation) |
-| `publish_email_campaign` | `campaign_id`, `revision_id`, `expected_lock_version` |
-| `revise_campaign` | Replace the draft and publish it (`campaign_id`, `source_revision_id`, `existing_draft_revision_id`, `draft`) |
-| `enroll_campaign_contacts` | Explicit audiences: `campaign_id`, `contact_ids`, `requested_at` |
-| `run_email_campaign` | `campaign_id`, `revision_id`, and exactly one of `all_active: true` / `enrollment_ids` |
-| `list_campaign_enrollments` / `get_campaign_enrollment_summary` | Enrollment dispositions |
-| `get_campaign_activity` | What was sent / queued / held |
+## Replies
 
-## Permissions (operations; required before any run)
-
-| Remote name | Role |
-|---|---|
-| `list_contact_permission_heads` | `{"path": {"contact_id"}}` → active permissions per channel and purpose |
-| `capture_operator_permission` | `{"path": {"contact_id"}, "body": {...}}` → records one; body in SKILL.md "Consent before any email campaign" |
-
-## Segments and contacts (operations)
-
-`get_segment_field_catalog`, `create_segment`, `materialize_segment`, `get_segment_readiness`, `list_segment_members`, `search_contacts`, `lookup_contact`, `create_contact`, `update_contact`, `list_campaigns`, `get_campaign`, `get_campaign_revision`.
-
-## Email step `channel_config` / step keys you will use
-
-`subject`, `body_text`, `link`, `unsubscribe_requirement` (`required` default, `optional`), `sending_identity` (`{"selection":"agent_default"}`), `permission_requirement`. Server-owned fields are never sent back.
+- [ ] Use `guzli:list_customer_conversations` to locate relevant conversations.
+- [ ] Read the selected conversation with `guzli:read_conversation` and report
+  the actual reply. Do not infer a reply from campaign enrollment state.

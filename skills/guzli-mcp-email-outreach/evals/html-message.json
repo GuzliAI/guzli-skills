@@ -1,0 +1,10 @@
+{
+  "skills": ["guzli-mcp-email-outreach"],
+  "query": "Email the confirmed recipient a short formatted appointment confirmation with a heading and a plain-text alternative. Ask me to approve the final message before sending.",
+  "expected_behavior": [
+    "Previews the recipient, subject and content and captures authorization before guzli:send_email.",
+    "Writes real HTML markup inside body_html in the tool arguments and supplies independent body_text.",
+    "Checks the exposed schema for accepted arguments instead of assuming a workflow schema is the copilot schema.",
+    "Does not resend an uncertain or approval-held message to obtain a delivery result."
+  ]
+}

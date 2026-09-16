@@ -1,64 +1,79 @@
-# Host note
+# Shared operations
 
-Tool names below are **remote** Guzli MCP names. Your agent host may show a namespace or prefix; match on these remote names when invoking. Guzli serves **workflow** tools (one call, several steps) and **operation** tools (`verb_object`, direct engine reads/writes). Confirm live schemas on the connected server.
+All tools in this reference use the copilot surface. Read the exposed schema
+before each new tool; copilot arguments are flat, not tenant transport envelopes.
 
-## Connector
+## Contacts and tags
 
-- MCP URL: `https://mcp.guzli.com/mcp`
-- OAuth AS: `https://gateway.guzli.com`
+- [ ] Use `guzli:find_contacts` and `guzli:lookup_contact` to resolve an existing
+  contact before creating one. Confirm ambiguous matches with the user.
+- [ ] Use `guzli:create_contact` only for supplied facts; supply source_reason_code.
+  For changes, use `guzli:update_contact` with contact_id and reason_code.
+- [ ] Keep custom_attributes scalar. Inspect existing fields through
+  `guzli:search_contacts` and `guzli:get_segment_field_catalog` before reuse.
+- [ ] Read back the contact; correct rejected fields and verify again.
+- [ ] For tags, inspect `guzli:browse_tags`, use `guzli:add_tag` for a missing
+  definition or `guzli:edit_tag` for a requested definition change, then use
+  `guzli:mutate_contact_tag` for the requested contact association.
+- [ ] Re-read the tag and contact facts to verify the association or change.
 
-## Contacts & lifecycle
+Do not invent an email address, phone number or permission basis. For lifecycle
+changes, inspect `guzli:list_lifecycle_stages` and the contact's
+`guzli:get_contact_lifecycle_stage` before `guzli:set_contact_lifecycle_stage`;
+re-read to verify the requested transition.
 
-| Remote name | Layer | Role |
-|---|---|---|
-| `create_contact` | operation | Create or resolve contact |
-| `update_contact` | operation | Patch profile / allowed custom attributes |
-| `search_contacts` / `list_contacts` | operation | Find contacts |
-| `lookup_contact` | operation | Resolve by id or identifier |
-| `list_contact_events` | operation | Evidence events |
-| `get_contact_lifecycle_stage` / `set_contact_lifecycle_stage` | operation | Stage read / move |
-| `list_lifecycle_stages` | operation | Profile, stages, edges |
-| `contact_digest` | operation | Bounded digest |
-| `list_contact_tags` / `apply_contact_tag` / `remove_contact_tag` | operation | Tags |
+## Segments
 
-## Segments (shared)
+- [ ] Read `guzli:get_segment_field_catalog` for field keys and allowed operators.
+- [ ] Define the requested audience and preview it with `guzli:preview_segment`.
+  Inspect matches; correct the expression and preview again before creating it.
+- [ ] Use `guzli:create_segment` with the approved expression. Each predicate
+  carries a generated predicate_id; do not invent field keys or operators.
+- [ ] Materialize the selected version with `guzli:materialize_segment`.
+- [ ] Check `guzli:get_segment_readiness` and `guzli:list_segment_members`.
+  Resolve failures and re-check before using the segment in a campaign.
 
-| Remote name | Layer | Role |
-|---|---|---|
-| `get_segment_field_catalog` | operation | Predicate catalog |
-| `preview_segment` | operation | Dry run |
-| `create_segment` / `create_segment_version` / `publish_segment_version` | operation | Author + publish |
-| `list_segments` / `get_segment` / `list_segment_versions` | operation | Inventory |
-| `materialize_segment` | operation | Compute membership (returns the materialization id) |
-| `get_segment_readiness` | operation | Is the version usable |
-| `list_segment_members` | operation | Current members page: `segment_id`, optional version, `limit`, `offset` only |
-| `list_segment_entry_facts` | operation | Entry facts (what segment automation enrolls from) |
+Keep segment_id, segment_version_id and the materialization identifier distinct.
+Reuse a matching segment rather than creating a duplicate for every contact list.
 
-## Campaign inspection (shared by email and voice)
+## Knowledge
 
-| Remote name | Layer | Role |
-|---|---|---|
-| `list_campaigns` / `get_campaign` | operation | Inventory; a source of `agent_id` |
-| `get_campaign_revision` / `list_campaign_revisions` | operation | Revision definition, `lock_version` |
-| `get_campaign_revision_readiness` | operation | **Blocking reasons before publish** |
-| `get_campaign_enrollment_summary` / `list_campaign_enrollments` | operation | Enrollment dispositions and typed refusals |
-| `list_campaign_revision_attempts` / `list_campaign_call_attempts` | operation | Send / call attempts |
-| `pause_campaign` / `resume_campaign` | operation | Pause and resume |
-| `campaign_measurement` | operation | Metrics |
-| `revise_campaign` | workflow | Replace the draft (send a complete draft; drop server-owned fields such as `extraction_schema_version_id`) |
-| `enroll_campaign_contacts` | workflow | Explicit-audience campaigns only |
+- [ ] Confirm the agent and source. For a supplied URL, use
+  `guzli:knowledge-ingest_url` with this argument shape after substituting facts:
 
-## Telephony & voice discovery
+```json
+{"agent_id":"<agent UUID>","source":{"crawl_type":"single","urls":["<approved absolute URL>"]}}
+```
 
-| Remote name | Layer | Role |
-|---|---|---|
-| `list_voice_profiles` / `get_voice_profile` | operation | Voice profiles (the agent default applies when a voice tool omits `voice_profile_id`) |
-| `list_telephony_number_pools` / `get_telephony_number_pool` | operation | **Caller-ID pools; required for voice publish; no default** |
-| `list_telephony_phone_numbers` | operation | Owned numbers (pool members) |
-| `search_managed_phone_numbers` / `buy_managed_phone_number` / `release_managed_phone_number` | workflow | Buy or release numbers (confirm with the user; these cost money) |
+- [ ] Retain the task_id and use `guzli:check_ingestion_status` for that task,
+  supplying the fields in its exposed schema. Acceptance is not completion.
+- [ ] On failure, inspect the returned error, correct its cause, and check state
+  before submitting another ingestion. Do not broaden to a website crawl unasked.
+- [ ] Once complete, use `guzli:knowledge_search` for a source-specific question;
+  verify that the returned evidence supports the expected answer.
 
-## One-off email (not campaigns)
+For a non-URL source, select the matching ingestion tool from the exposed schema
+instead; preserve the same status and retrieval checks.
 
-| Remote name | Layer | Role |
-|---|---|---|
-| `send_email` | workflow | Single plain-text email |
+## Configuration and integrations
+
+- [ ] Inspect `guzli:get_agent_tool_configuration` for a tool configuration request.
+- [ ] For a system-prompt replacement, confirm the full requested text and agent;
+  use `guzli:configure_agent_system_prompt` with agent_id and system_prompt.
+- [ ] Follow its ask-first engine approval flow. A hold is not a saved change;
+  verify the engine result before reporting completion.
+- [ ] For an explicitly requested webhook, read `guzli:list_webhook_events`,
+  confirm the destination and selected events, and inspect the schema of
+  `guzli:create_webhook_integration` before creating it.
+- [ ] Verify the returned integration details against the requested destination
+  and events. Do not create another integration after an uncertain response.
+
+## Conversations and issues
+
+- [ ] Start catch-up with `guzli:list_customer_conversations`; select the relevant
+  conversation before `guzli:read_conversation` or `guzli:read_conversation_summary`.
+- [ ] For an authorized bug report, collect observed behavior, expected behavior
+  and reproduction context; exclude credentials and unnecessary contact data.
+- [ ] Submit once through `guzli:report_issue` using its exposed schema.
+- [ ] Report the returned outcome. If uncertain, investigate that submission;
+  do not create duplicate reports to obtain a successful response.

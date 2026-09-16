@@ -1,58 +1,59 @@
 # Guzli skills
 
-Public [Agent Skills](https://agentskills.io) for [Guzli](https://guzli.com) MCP (`https://mcp.guzli.com/mcp`).
+Portable Agent Skills for Guzli MCP at `https://mcp.guzli.com/mcp`.
 
-These skills follow the **agentskills.io** `SKILL.md` standard so the same folders work across hosts that load Agent Skills — including **Claude Code**, **OpenAI Codex / ChatGPT skills**, **Cursor**, **Grok Bot**, **OpenClaw**, **Muse Code**, **Hermes Agent** (Nous Research), and other compatible agents.
+| Skill | Use |
+| --- | --- |
+| [guzli-mcp-core](skills/guzli-mcp-core/SKILL.md) | Connection, contacts, tags, segments, knowledge, managed numbers and issues |
+| [guzli-mcp-email-outreach](skills/guzli-mcp-email-outreach/SKILL.md) | One-off email, HTML, permission and email campaign workflows |
+| [guzli-mcp-voice-campaigns](skills/guzli-mcp-voice-campaigns/SKILL.md) | One-off calls, permission, voice campaigns and answer extraction |
 
-Each skill is a directory with:
-
-- `SKILL.md` — required YAML frontmatter (`name`, `description`) + instructions
-- `references/` — optional detail loaded on demand
-- `agents/openai.yaml` — optional Codex / ChatGPT desktop metadata + Guzli MCP dependency hint
-
-## Skills
-
-| Folder | Skill `name` | Use when |
-|---|---|---|
-| [`skills/guzli-mcp-core`](skills/guzli-mcp-core/) | `guzli-mcp-core` | Connect Guzli MCP, contacts, lifecycle, shared concepts |
-| [`skills/guzli-mcp-email-outreach`](skills/guzli-mcp-email-outreach/) | `guzli-mcp-email-outreach` | Standing **email** campaigns + segments |
-| [`skills/guzli-mcp-voice-campaigns`](skills/guzli-mcp-voice-campaigns/) | `guzli-mcp-voice-campaigns` | **Voice** campaigns (create / publish / run) |
-
-Install **core** plus whichever channel skill(s) you need. Channel skills assume core concepts; they do not require a monorepo-relative path at runtime.
+Each skill is self-contained. Install the skills your work needs; the channel
+skills do not require loading the general skill first.
 
 ## Install
 
-See [INSTALL.md](INSTALL.md) for host-specific paths (Claude, Codex, Cursor, Grok, OpenClaw, Muse, Hermes, generic clone).
+See [INSTALL.md](INSTALL.md) for host paths. From a clone:
 
-Quick pattern (any host that scans a skills directory):
-
-```bash
-git clone https://github.com/GuzliAI/guzli-skills.git
-# copy one skill folder so SKILL.md is at <skills-root>/<name>/SKILL.md
-cp -R guzli-skills/skills/guzli-mcp-core <skills-root>/guzli-mcp-core
+```sh
+./scripts/install-skill.sh guzli-mcp-core ~/.agents/skills
 ```
 
-## MCP prerequisite
+The installer replaces the selected destination skill folder. Authenticate the
+Guzli MCP connection in your host. Default copilot scopes are
+`guzli:copilot:read` and `guzli:copilot:act`; tenant-operations is separate and
+only on request. The dependency in `agents/openai.yaml` does not authenticate it.
 
-Skills describe **how** to use Guzli tools. Your host must still expose Guzli as an MCP server:
+## Validation
 
-- **URL:** `https://mcp.guzli.com/mcp`
-- **Auth:** OAuth 2.0 via `https://gateway.guzli.com` (authorization code + PKCE)
+Use Python 3.9 or later (standard library only) for the census and its tests:
 
-How you add that connector differs by product (Claude connectors, Codex/ChatGPT apps, Cursor MCP, Grok connectors, OpenClaw MCP config, etc.). Skills stay connector-UI agnostic: discover tools from the connected Guzli server, then call them by **remote name** (for example `list_campaigns`).
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts
+python3 scripts/tool_census.py --catalog /path/to/copilot-catalog.json \
+  --primitives /path/to/engine-primitives.json --skills-root skills \
+  --plugin-root /path/to/plugin/plugins/guzli/skills
+claude plugin validate --strict ./skills
+```
 
-## Authoring rules (portability)
+The census checks every inline backticked identifier in SKILL.md, references and
+evals, including unknown identifiers. It reports catalog surfaces and fails on
+unknowns. `--json` includes occurrence paths. Fenced JSON examples require a
+separate schema review; a tool-name match does not prove argument validity.
 
-- Frontmatter `name` is lowercase kebab-case and **matches the folder name**.
-- Descriptions are third person: what + when + when not.
-- No host-private paths, chat ids, or org secrets in skill text.
-- Intra-skill links stay one level deep (`references/...`). Cross-skill deps are by **skill name**, not fragile relative paths after install.
+Each skill's `evals/` contains manual/harness-run scenarios with `skills`, `query`
+and `expected_behavior`. No network evaluation runs during local validation.
+Run scenarios in a permitted harness with each target model before asserting
+behavioral quality; schema and packaging checks alone do not prove it.
 
-## Changelog
+## Release notes
 
-- **1.5.0 (2026-09-10)** — verified against the Guzli engine MCP registry. Adds the two tool layers (workflows vs operations) and id discovery (`list_telephony_number_pools`, `list_voice_profiles`, `list_telephony_phone_numbers`, `get_campaign_revision_readiness`); voice runbook rewritten around the caller-ID **number pool** (required, no default), the daily cap, readiness codes and the one-call dial workflows; release-compatibility table for 1.0.7 vs 1.0.8 (`run_email_campaign`, voice publish, effect-key labels, pinned-segment sweep); `revise_campaign` round-trip rule.
-- **1.4.0** — MCP campaign skills rewritten as clean runbooks.
+**1.8.0** targets engine **1.0.22**. Rewrites the three skills around the served
+copilot surface, separates plugin skills by channel, removes historical skill
+instructions, and adds permission, draft-edit, managed-number and readiness
+feedback loops plus offline census checks and evaluation scenarios. Release
+versions live here, not in agent-loaded instructions.
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE).
