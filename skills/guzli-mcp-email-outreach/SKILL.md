@@ -18,6 +18,13 @@ The server is named guzli in plugin configurations; the fully qualified form is 
 Complete the Guzli OAuth sign-in in your host.
 Read exposed schemas before supplying arguments to the Guzli tools.
 
+## Terms
+
+- Permission: the contact's recorded permission for a channel and purpose.
+- Authorization: the user's go-ahead for an action the agent takes.
+- Approval: the engine's hold/approve flow for ask-first tools.
+- Draft: an unpublished campaign revision; publish: make a draft available for enrollment; enroll: admit contacts; run: dispatch campaign work; tool: an MCP tool; argument: a tool input field.
+
 ## One recipient
 
 - [ ] Resolve the recipient and preview the subject and content. Capture the
@@ -50,16 +57,16 @@ permission-required campaign enrollment or send.
 - [ ] Create or edit the draft; validate the saved content.
 - [ ] When authorized, publish through the readiness-gated workflow. Fix reported
   failures and publish again; only its result establishes readiness.
-- [ ] Verify publication, enroll the approved explicit audience, then run.
+- [ ] Verify publication, enroll the authorized explicit audience, then run.
 - [ ] Read enrollment and campaign results; queued does not mean delivered.
 
 | Task | Tool |
 | --- | --- |
-| Resolve contacts | `find_contacts`, `lookup_contact` |
-| Read and edit draft | `get_campaign_revision`, `update_campaign_draft_step` |
-| Create and publish | `create_email_campaign`, `publish_email_campaign` |
-| Enroll and run | `enroll_campaign_contacts`, `run_email_campaign` |
-| Inspect outcomes | `get_campaign_enrollment_summary`, `campaign_measurement` |
+| Resolve contacts | `guzli:find_contacts`, `guzli:lookup_contact` |
+| Read and edit draft | `guzli:get_campaign_revision`, `guzli:update_campaign_draft_step` |
+| Create and publish | `guzli:create_email_campaign`, `guzli:publish_email_campaign` |
+| Enroll and run | `guzli:enroll_campaign_contacts`, `guzli:run_email_campaign` |
+| Inspect outcomes | `guzli:get_campaign_enrollment_summary`, `guzli:campaign_measurement` |
 
 For a segment audience, follow [segment preparation](references/segments.md);
 do not explicitly enroll contacts into a segment campaign. For pause, resume,

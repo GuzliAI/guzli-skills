@@ -1,7 +1,6 @@
 # Permission before a campaign send
 
-User authorization to operate the
-tool and the recipient's recorded permission are distinct. Never invent either.
+Never invent user authorization or recorded contact permission.
 For a one-off send, capture the user's send authorization; do not pretend that
 it is a campaign enrollment with a campaign permission-row check.
 

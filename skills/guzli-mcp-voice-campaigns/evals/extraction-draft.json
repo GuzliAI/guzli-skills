@@ -2,9 +2,9 @@
   "skills": ["guzli-mcp-voice-campaigns"],
   "query": "Add a required preferred callback number to this voice draft's answer extraction. Save only, then show how I can inspect answers after a future authorized run.",
   "expected_behavior": [
-    "Reads the draft and patches the selected step with guzli:update_campaign_draft_step and its current lock.",
+    "Reads the draft and patches the selected step with `guzli:update_campaign_draft_step` and its current lock.",
     "Uses post_call_extraction with a phone field and verifies the saved draft without publishing.",
-    "Identifies guzli:list_campaign_extraction_results and guzli:get_campaign_extraction_result for reading answers.",
+    "Identifies `guzli:list_campaign_extraction_results` and `guzli:get_campaign_extraction_result` for reading answers.",
     "Does not place a test call or create a webhook without authorization."
   ]
 }

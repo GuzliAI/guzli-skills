@@ -18,6 +18,13 @@ The server is named guzli in plugin configurations; the fully qualified form is 
 Complete the Guzli OAuth sign-in in your host.
 Read exposed schemas before supplying arguments to the Guzli tools.
 
+## Terms
+
+- Permission: the contact's recorded permission for a channel and purpose.
+- Authorization: the user's go-ahead for an action the agent takes.
+- Approval: the engine's hold/approve flow for ask-first tools.
+- Draft: an unpublished campaign revision; publish: make a draft available for enrollment; enroll: admit contacts; run: dispatch campaign work; tool: an MCP tool; argument: a tool input field.
+
 ## One operator-directed call
 
 - [ ] Resolve the intended contact or E.164 phone number and the call instructions.
@@ -53,17 +60,17 @@ structured answers and requested webhooks.
 - [ ] When authorized, publish through the readiness-gated workflow. Fix reported
   failures and publish again; only its result establishes readiness.
   A draft-only request stops before publish.
-- [ ] Verify publication, enroll the approved explicit audience, then run.
+- [ ] Verify publication, enroll the authorized explicit audience, then run.
 - [ ] Inspect call attempts and extraction; report actual outcomes and pending work.
 
 | Task | Tool |
 | --- | --- |
-| Resolve recipients | `find_contacts`, `lookup_contact` |
-| Discover caller-ID pool and profile | `list_telephony_number_pools`, `list_voice_profiles` |
-| Read and edit draft | `get_campaign_revision`, `update_campaign_draft_step` |
-| Create and publish | `create_voice_campaign`, `publish_voice_campaign` |
-| Enroll and run | `enroll_campaign_contacts`, `run_voice_campaign` |
-| Read calls and answers | `list_campaign_call_attempts`, `list_campaign_extraction_results` |
+| Resolve recipients | `guzli:find_contacts`, `guzli:lookup_contact` |
+| Discover caller-ID pool and profile | `guzli:list_telephony_number_pools`, `guzli:list_voice_profiles` |
+| Read and edit draft | `guzli:get_campaign_revision`, `guzli:update_campaign_draft_step` |
+| Create and publish | `guzli:create_voice_campaign`, `guzli:publish_voice_campaign` |
+| Enroll and run | `guzli:enroll_campaign_contacts`, `guzli:run_voice_campaign` |
+| Read calls and answers | `guzli:list_campaign_call_attempts`, `guzli:list_campaign_extraction_results` |
 
 For a segment audience, follow [segment preparation](references/segments.md);
 segment automation owns enrollment. Number purchase and release belong to the

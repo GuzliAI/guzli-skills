@@ -39,6 +39,24 @@ class CensusTests(unittest.TestCase):
         self.assertNotIn("contact_id", index)
         self.assertNotIn("invented_tool", index)
 
+    def test_qualified_hyphenated_tool_uses_catalog_name(self):
+        root = Path("skills")
+        catalog = {"copilot": [{"name": "knowledge-ingest_url"}]}
+        with patch("tool_census.skill_files", return_value=[root / "example" / "SKILL.md"]), \
+             patch.object(Path, "read_text", return_value="`guzli:knowledge-ingest_url`"):
+            rows = census(build_index(catalog), [("skills", root)])
+        self.assertEqual(rows, [{
+            "identifier": "guzli:knowledge-ingest_url", "status": "copilot",
+            "files": ["skills/example/SKILL.md"],
+        }])
+
+    def test_other_server_prefix_is_unknown(self):
+        root = Path("skills")
+        with patch("tool_census.skill_files", return_value=[root / "example" / "SKILL.md"]), \
+             patch.object(Path, "read_text", return_value="`other:find_contacts`"):
+            rows = census(build_index(self.catalog()), [("skills", root)])
+        self.assertEqual(rows[0]["status"], "unknown")
+
     def test_invalid_catalog_fails(self):
         with self.assertRaisesRegex(ValueError, "nonempty array"):
             build_index({})

@@ -4,12 +4,12 @@ Inspect exposed schemas before supplying arguments to the Guzli tools.
 
 | Need | Tool |
 | --- | --- |
-| Calls | `list_calls`, `get_call` |
-| Campaign attempts | `list_campaign_call_attempts`, `get_campaign_call_attempt` |
-| Captured answers | `list_campaign_extraction_results`, `get_campaign_extraction_result` |
-| Campaign state | `get_campaign`, `get_campaign_enrollment_summary`, `campaign_measurement` |
-| Pause or resume | `pause_campaign_now`, `resume_campaign_now` |
-| Webhook setup | `list_webhook_events`, `create_webhook_integration` |
+| Calls | `guzli:list_calls`, `guzli:get_call` |
+| Campaign attempts | `guzli:list_campaign_call_attempts`, `guzli:get_campaign_call_attempt` |
+| Captured answers | `guzli:list_campaign_extraction_results`, `guzli:get_campaign_extraction_result` |
+| Campaign state | `guzli:get_campaign`, `guzli:get_campaign_enrollment_summary`, `guzli:campaign_measurement` |
+| Pause or resume | `guzli:pause_campaign_now`, `guzli:resume_campaign_now` |
+| Webhook setup | `guzli:list_webhook_events`, `guzli:create_webhook_integration` |
 
 ## Configure structured answers
 
