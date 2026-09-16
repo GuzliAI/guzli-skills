@@ -1,10 +1,12 @@
 ---
 name: guzli-mcp-core
 description: >-
-  Manages Guzli MCP connection, contact discovery, tags, segments, knowledge,
-  managed phone numbers, agent configuration and issue reports. Applies when
-  users request these shared operations or troubleshoot Guzli tools. Routes
-  email sending to guzli-mcp-email-outreach and outbound calls to
+  Manages Guzli connections, contacts, knowledge, phone numbers and agent settings.
+  Use when the user mentions Guzli and wants to find contacts, manage tags or
+  segments, replace a system prompt, inspect agent configuration, ingest a support
+  URL into the knowledge base, check ingestion progress, file a bug report,
+  troubleshoot tools, or search, buy or release numbers through phone number purchase
+  and inventory workflows. Routes email sending to guzli-mcp-email-outreach and outbound calls to
   guzli-mcp-voice-campaigns; does not own either channel's campaign runbook.
 license: Apache-2.0
 compatibility: Requires a host with Agent Skills support and the Guzli MCP server at https://mcp.guzli.com/mcp.

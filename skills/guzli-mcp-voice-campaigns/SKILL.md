@@ -2,9 +2,12 @@
 name: guzli-mcp-voice-campaigns
 description: >-
   Places Guzli outbound calls and prepares, edits, publishes and monitors voice
-  campaigns with call instructions and structured answer extraction. Applies to
-  one-off dialing, voice surveys, caller-ID pools, call results and captured
-  answers. Routes email to guzli-mcp-email-outreach and shared connection,
+  campaigns with call instructions and structured answer extraction. Use when the user
+  mentions Guzli and wants to call a contact or phone number once with follow-up
+  instructions, prepare a permission-required voice campaign or survey, edit a draft,
+  add a required preferred callback number to answer extraction, select a caller ID
+  pool or daily cap, inspect captured answers, or check an uncertain call before retrying.
+  Routes email to guzli-mcp-email-outreach and shared connection,
   contact, knowledge or number administration to guzli-mcp-core.
 license: Apache-2.0
 compatibility: Requires a host with Agent Skills support and the Guzli MCP server at https://mcp.guzli.com/mcp.
