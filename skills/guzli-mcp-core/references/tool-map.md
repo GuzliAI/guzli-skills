@@ -26,7 +26,7 @@ re-read to verify the requested transition.
 - [ ] Read `guzli:get_segment_field_catalog` for field keys and allowed operators.
 - [ ] Define the requested audience and preview it with `guzli:preview_segment`.
   Inspect matches; correct the expression and preview again before creating it.
-- [ ] Use `guzli:create_segment` with the approved expression. Each predicate
+- [ ] Use `guzli:create_segment` with the authorized expression. Each predicate
   carries a generated predicate_id; do not invent field keys or operators.
 - [ ] Materialize the selected version with `guzli:materialize_segment`.
 - [ ] Check `guzli:get_segment_readiness` and `guzli:list_segment_members`.
@@ -41,11 +41,11 @@ Reuse a matching segment rather than creating a duplicate for every contact list
   `guzli:knowledge-ingest_url` with this argument shape after substituting facts:
 
 ```json
-{"agent_id":"<agent UUID>","source":{"crawl_type":"single","urls":["<approved absolute URL>"]}}
+{"agent_id":"<agent UUID>","source":{"crawl_type":"single","urls":["<authorized absolute URL>"]}}
 ```
 
 - [ ] Retain the task_id and use `guzli:check_ingestion_status` for that task,
-  supplying the fields in its exposed schema. Acceptance is not completion.
+  supplying the arguments in its exposed schema. Acceptance is not completion.
 - [ ] On failure, inspect the returned error, correct its cause, and check state
   before submitting another ingestion. Do not broaden to a website crawl unasked.
 - [ ] Once complete, use `guzli:knowledge_search` for a source-specific question;
@@ -79,5 +79,5 @@ instead; preserve the same status and retrieval checks.
 
 | Read | Tool |
 | --- | --- |
-| Conversation messages | `read_conversation` |
-| Conversation summary | `read_conversation_summary` |
+| Conversation messages | `guzli:read_conversation` |
+| Conversation summary | `guzli:read_conversation_summary` |

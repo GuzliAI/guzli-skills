@@ -24,7 +24,7 @@ read the exposed schema before invoking each tool.
 ```
 
 - [ ] Verify the exact number and assignment with `guzli:list_owned_phone_numbers`.
-  An uncertain response is not permission to buy again. Inspect inventory and
+  An uncertain response is not authorization to buy again. Inspect inventory and
   the returned outcome; stop and report uncertainty if ownership is unresolved.
 - [ ] Report the owned number and returned identifier only after verification.
 

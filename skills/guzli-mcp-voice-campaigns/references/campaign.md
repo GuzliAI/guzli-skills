@@ -1,7 +1,7 @@
 # Voice campaign checklist
 
 Substitute verified facts for placeholders and the latest lock for
-the illustrative lock value. Caps must reflect the user's approved limits.
+the illustrative lock value. Caps must reflect the user's authorized limits.
 
 ## Prepare and create
 
@@ -29,14 +29,14 @@ the illustrative lock value. Caps must reflect the user's approved limits.
 - [ ] Retain campaign_id, revision_id and lock_version; verify the saved draft
   with `guzli:get_campaign_revision` using campaign_id and revision_id.
 
-The sample explicitly requires permission. Use the approved purpose and policy,
+The sample explicitly requires permission. Use the authorized purpose and policy,
 not a weaker requirement to bypass a failure. Voice creation accepts purpose
 marketing or transactional, and permission_requirement required or optional.
 
 ## Edit without publishing
 
 - [ ] Read the draft's step_id and lock_version with `guzli:get_campaign_revision`.
-- [ ] Patch only the requested fields with `guzli:update_campaign_draft_step`:
+- [ ] Use `guzli:update_campaign_draft_step` with only the requested changes in its patch argument:
 
 ```json
 {"campaign_id":"<campaign UUID>","revision_id":"<draft UUID>","step_id":"<draft step UUID>","expected_lock_version":1,"patch":{"call_instructions":"Ask for the preferred callback number, confirm it, and close the call."}}
@@ -64,7 +64,7 @@ marketing or transactional, and permission_requirement required or optional.
 - [ ] For an explicit audience, call `guzli:enroll_campaign_contacts`:
 
 ```json
-{"campaign_id":"<campaign UUID>","contact_ids":["<approved contact UUID>"],"requested_at":"<current ISO timestamp>"}
+{"campaign_id":"<campaign UUID>","contact_ids":["<authorized contact UUID>"],"requested_at":"<current ISO timestamp>"}
 ```
 
 - [ ] Verify enrollments with `guzli:get_campaign_enrollment_summary`. For a

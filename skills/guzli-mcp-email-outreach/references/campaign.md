@@ -1,7 +1,7 @@
 # Email campaign checklist
 
 Replace angle-bracket placeholders with verified facts.
-Numeric examples are illustrative: use the approved cap and latest lock value.
+Numeric examples are illustrative: use the authorized cap and latest lock value.
 
 ## Prepare and create
 
@@ -30,14 +30,14 @@ Numeric examples are illustrative: use the approved cap and latest lock value.
   audience, plain text, HTML, purpose and policies before publish.
 
 The sample selects permission and unsubscribe requirements explicitly; it does
-not describe a server default. Use the user's approved policy, never a weaker
+not describe a server default. Use the user's authorized policy, never a weaker
 policy to bypass a failure. Purpose is marketing or transactional. Preserve
-independent body_text when supplying body_html; author HTML inside the tool input.
+independent body_text when supplying body_html; author HTML inside the body_html argument.
 
 ## Edit a draft without publishing
 
 - [ ] Read the draft with `guzli:get_campaign_revision`; use its step_id and lock.
-- [ ] Call `guzli:update_campaign_draft_step` for only the requested fields:
+- [ ] Call `guzli:update_campaign_draft_step` with only the requested changes in its patch argument:
 
 ```json
 {"campaign_id":"<campaign UUID>","revision_id":"<draft UUID>","step_id":"<draft step UUID>","expected_lock_version":1,"patch":{"subject":"Updated follow-up","body_text":"Updated information.","body_html":"<p>Updated information.</p>"}}
@@ -64,13 +64,13 @@ independent body_text when supplying body_html; author HTML inside the tool inpu
 - [ ] For an explicit audience, use `guzli:enroll_campaign_contacts`:
 
 ```json
-{"campaign_id":"<campaign UUID>","contact_ids":["<approved contact UUID>"],"requested_at":"<current ISO timestamp>"}
+{"campaign_id":"<campaign UUID>","contact_ids":["<authorized contact UUID>"],"requested_at":"<current ISO timestamp>"}
 ```
 
 - [ ] Verify accepted enrollments with `guzli:get_campaign_enrollment_summary`.
   Resolve discrepancies before run. For a segment audience, skip explicit enroll;
   inspect automation's enrollment results instead.
-- [ ] Run only the approved enrollments with `guzli:run_email_campaign`:
+- [ ] Run only the authorized enrollments with `guzli:run_email_campaign`:
 
 ```json
 {"campaign_id":"<campaign UUID>","revision_id":"<published UUID>","enrollment_ids":["<accepted enrollment UUID>"]}

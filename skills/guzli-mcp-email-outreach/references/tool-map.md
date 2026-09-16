@@ -1,15 +1,15 @@
 # Email monitoring and personalization
 
-Read the Guzli tools' exposed input schemas.
+Read the Guzli tools' exposed argument schemas.
 
 | Need | Tool |
 | --- | --- |
-| Campaign inventory and state | `list_campaigns`, `get_campaign` |
-| Enrollment details | `list_campaign_enrollments`, `get_campaign_enrollment_summary` |
-| Measurement | `campaign_measurement` |
-| Pause or resume | `pause_campaign_now`, `resume_campaign_now` |
-| Replies | `list_customer_conversations`, `read_conversation` |
-| Contact fields | `update_contact`, `search_contacts`, `get_segment_field_catalog` |
+| Campaign inventory and state | `guzli:list_campaigns`, `guzli:get_campaign` |
+| Enrollment details | `guzli:list_campaign_enrollments`, `guzli:get_campaign_enrollment_summary` |
+| Measurement | `guzli:campaign_measurement` |
+| Pause or resume | `guzli:pause_campaign_now`, `guzli:resume_campaign_now` |
+| Replies | `guzli:list_customer_conversations`, `guzli:read_conversation` |
+| Contact fields | `guzli:update_contact`, `guzli:search_contacts`, `guzli:get_segment_field_catalog` |
 
 ## Monitor or pause
 
@@ -41,4 +41,4 @@ Read the Guzli tools' exposed input schemas.
 
 | Read | Tool |
 | --- | --- |
-| Conversation messages | `read_conversation` |
+| Conversation messages | `guzli:read_conversation` |
