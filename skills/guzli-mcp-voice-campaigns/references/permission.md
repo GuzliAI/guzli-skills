@@ -1,6 +1,6 @@
 # Permission before a campaign send
 
-These tools use copilot and flat arguments. User authorization to operate the
+User authorization to operate the
 tool and the recipient's recorded permission are distinct. Never invent either.
 For a one-off call, capture the user's call authorization; do not pretend that
 it is a campaign enrollment with a campaign permission-row check.

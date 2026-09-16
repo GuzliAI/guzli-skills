@@ -1,6 +1,6 @@
 # Managed numbers
 
-All tools here are on copilot. Substitute discovered identifiers into the JSON;
+Substitute discovered identifiers into the JSON;
 read the exposed schema before invoking each tool.
 
 ## Purchase

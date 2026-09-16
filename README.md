@@ -19,10 +19,8 @@ See [INSTALL.md](INSTALL.md) for host paths. From a clone:
 ./scripts/install-skill.sh guzli-mcp-core ~/.agents/skills
 ```
 
-The installer replaces the selected destination skill folder. Authenticate the
-Guzli MCP connection in your host. Default copilot scopes are
-`guzli:copilot:read` and `guzli:copilot:act`; tenant-operations is separate and
-only on request. The dependency in `agents/openai.yaml` does not authenticate it.
+The installer replaces the selected destination skill folder.
+Complete the Guzli OAuth sign-in in your host.
 
 ## Validation
 
@@ -31,14 +29,14 @@ Use Python 3.9 or later (standard library only) for the census and its tests:
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts
 python3 scripts/tool_census.py --catalog /path/to/copilot-catalog.json \
-  --primitives /path/to/engine-primitives.json --skills-root skills \
+  --skills-root skills \
   --plugin-root /path/to/plugin/plugins/guzli/skills
 claude plugin validate --strict ./skills
 ```
 
 The census checks every inline backticked identifier in SKILL.md, references and
-evals, including unknown identifiers. It reports catalog surfaces and fails on
-unknowns. `--json` includes occurrence paths. Fenced JSON examples require a
+evals, including unknown identifiers. It checks only the copilot catalog and fails
+on unknowns. `--json` includes occurrence paths. Fenced JSON examples require a
 separate schema review; a tool-name match does not prove argument validity.
 
 Each skill's `evals/` contains manual/harness-run scenarios with `skills`, `query`
@@ -48,8 +46,8 @@ behavioral quality; schema and packaging checks alone do not prove it.
 
 ## Release notes
 
-**1.8.0** targets engine **1.0.22**. Rewrites the three skills around the served
-copilot surface, separates plugin skills by channel, removes historical skill
+**1.8.0** targets engine **1.0.22**. Rewrites the three skills around the Guzli
+tools, separates plugin skills by channel, removes historical skill
 instructions, and adds permission, draft-edit, managed-number and readiness
 feedback loops plus offline census checks and evaluation scenarios. Release
 versions live here, not in agent-loaded instructions.

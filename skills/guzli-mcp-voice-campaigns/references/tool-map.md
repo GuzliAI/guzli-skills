@@ -1,6 +1,6 @@
 # Voice results and extraction
 
-All tools here use copilot. Inspect exposed schemas before supplying arguments.
+Inspect exposed schemas before supplying arguments to the Guzli tools.
 
 | Need | Tool |
 | --- | --- |

@@ -1,7 +1,6 @@
 # Shared operations
 
-All tools in this reference use the copilot surface. Read the exposed schema
-before each new tool; copilot arguments are flat, not tenant transport envelopes.
+Read the exposed schema before supplying arguments to the Guzli tools.
 
 ## Contacts and tags
 
@@ -71,9 +70,14 @@ instead; preserve the same status and retrieval checks.
 ## Conversations and issues
 
 - [ ] Start catch-up with `guzli:list_customer_conversations`; select the relevant
-  conversation before `guzli:read_conversation` or `guzli:read_conversation_summary`.
+  conversation before reading its messages or summary with the tools below.
 - [ ] For an authorized bug report, collect observed behavior, expected behavior
   and reproduction context; exclude credentials and unnecessary contact data.
 - [ ] Submit once through `guzli:report_issue` using its exposed schema.
 - [ ] Report the returned outcome. If uncertain, investigate that submission;
   do not create duplicate reports to obtain a successful response.
+
+| Read | Tool |
+| --- | --- |
+| Conversation messages | `read_conversation` |
+| Conversation summary | `read_conversation_summary` |

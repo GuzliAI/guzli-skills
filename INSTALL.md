@@ -27,10 +27,8 @@ same source skills; preserve their targets when working from this clone.
 
 ## Connect and verify
 
-1. Configure Guzli MCP at `https://mcp.guzli.com/mcp` in the host and complete
-   OAuth through `https://gateway.guzli.com`.
-2. Authorize `guzli:copilot:read` and `guzli:copilot:act` for default copilot use.
-   Tenant-operations scopes `guzli:read` and `guzli:write` are separate, on request.
+1. Configure Guzli MCP at `https://mcp.guzli.com/mcp` in the host.
+2. Complete the Guzli OAuth sign-in in your host.
 3. Reload the host's skill discovery and invoke the selected skill by name.
 4. Request read-only contact discovery and verify that Guzli tools are exposed.
    Installing skill files alone does not connect or authenticate MCP.

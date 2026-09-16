@@ -1,7 +1,6 @@
 # Email campaign checklist
 
-All tools here are copilot except the explicitly labeled tenant-operations
-readiness preflight. Replace angle-bracket placeholders with verified facts.
+Replace angle-bracket placeholders with verified facts.
 Numeric examples are illustrative: use the approved cap and latest lock value.
 
 ## Prepare and create
@@ -51,26 +50,17 @@ independent body_text when supplying body_html; author HTML inside the tool inpu
 ## Readiness, publish, enroll, run
 
 - [ ] Check the saved draft against the confirmed audience, content and cap.
-  If tenant-operations is separately requested and exposed, preflight with
-  `guzli:get_campaign_revision_readiness`:
-
-```json
-{"path":{"campaign_id":"<campaign UUID>","revision_id":"<draft UUID>"},"query":{},"headers":{}}
-```
-
-- [ ] Fix readiness errors and re-check. Without that separate surface, use the
-  copilot publish workflow's engine readiness gate; do not invent a copilot
-  readiness tool or claim an unobserved preflight passed.
 - [ ] When publication is authorized, call `guzli:publish_email_campaign`:
 
 ```json
 {"campaign_id":"<campaign UUID>","revision_id":"<draft UUID>","expected_lock_version":1}
 ```
 
-- [ ] Inspect ready, reasons and saved state with `guzli:get_campaign_revision`.
-  Proceed only after readiness passes and publication is confirmed. Fix returned
-  failures and re-check state before another publish; never assume a failed or
-  uncertain response left no durable change. Do not bypass readiness with another tool.
+- [ ] Establish readiness only from the publish workflow's result. Fix the
+  failures it reports, re-read saved state with `guzli:get_campaign_revision`,
+  then publish again with the latest lock. For an uncertain result, resolve saved
+  state before retrying; stop if unresolved. Proceed only after readiness passes
+  and publication is confirmed. A hold remains pending; do not poll for approval.
 - [ ] For an explicit audience, use `guzli:enroll_campaign_contacts`:
 
 ```json
